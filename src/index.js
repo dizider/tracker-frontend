@@ -75,10 +75,10 @@ app.ports.genRandomBytes.subscribe(n => {
     app.ports.randomBytes.send(bytes);
 });
 
-// app.ports.persistToken.subscribe(token => {
-//     console.log("Persisting token")
-//     localStorage.setItem("token", token)
-// });
+app.ports.persistToken.subscribe(token => {
+    console.log("Persisting token")
+    localStorage.setItem("token", token)
+});
 
 app.ports.removeToken.subscribe(_ => {
     console.log("Removing token")
