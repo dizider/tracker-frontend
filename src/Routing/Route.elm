@@ -1,5 +1,6 @@
 module Routing.Route exposing (..)
 
+import Auth
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
@@ -8,11 +9,10 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (href)
 import Html.Styled.Events exposing (..)
 import Pages.Home as Home
-import Pages.Trackers as Trackers
+import Pages.Tracks as Tracks
 import SharedState as SharedState
 import Url exposing (Url)
 import Url.Parser as Parser exposing (..)
-import Auth
 
 
 type Tracker
@@ -21,37 +21,38 @@ type Tracker
 
 type Route
     = NotFound
-      -- | AccessDenied
-    | TrackersList
+    | TracksList
     | HomePage
-
-
-
--- | Map Tracker
--- | Analyze Tracker
 
 
 type Msg
     = ChangedUrl Url.Url
     | NavigateTo Route
-    | TrackersMsg Trackers.Msg
+    | TracksMsg Tracks.Msg
     | HomeMsg Home.Msg
 
 
 type alias Model =
     { route : Route
-    , trackersListModel : Trackers.Model
+    , tracksListModel : Tracks.Model
     , homeModel : Home.Model
     }
 
 
 init : Url -> ( Model, Cmd Msg )
 init url =
-    ( { trackersListModel = Trackers.initModel
+    let
+        ( tracksModel, trackersMsg ) =
+            Tracks.init
+    in
+    ( { tracksListModel = tracksModel
       , homeModel = Home.initModel
       , route = parseUrl url
       }
-    , Cmd.map HomeMsg Cmd.none
+    , Cmd.batch
+        [ Cmd.map HomeMsg Cmd.none
+        , Cmd.map TracksMsg trackersMsg
+        ]
     )
 
 
@@ -65,26 +66,37 @@ update sharedState msg model =
             )
 
         NavigateTo route ->
-            ( model
-            , Browser.Navigation.pushUrl sharedState.navKey (routeToString route)
-            , SharedState.NoUpdate
-            )
+            case route of
+                TracksList ->
+                    ( model
+                    , Cmd.batch [ Cmd.map TracksMsg Tracks.fetchData, Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
+                    , SharedState.NoUpdate
+                    )
 
-        TrackersMsg tmsg ->
+                _ ->
+                    ( model
+                    , Browser.Navigation.pushUrl sharedState.navKey (routeToString route)
+                    , SharedState.NoUpdate
+                    )
+
+        TracksMsg tmsg ->
             updateTrackers sharedState model tmsg
 
         HomeMsg hmsg ->
             updateHome sharedState model hmsg
 
 
-updateTrackers : SharedState.SharedState -> Model -> Trackers.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+updateTrackers : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateTrackers sharedState model trackersMsg =
     let
+        _ =
+            Debug.log "updateTrackers" ""
+
         ( nextHomeModel, trackersCmd, trackerSharedState ) =
-            Trackers.update sharedState trackersMsg model.trackersListModel
+            Tracks.update sharedState trackersMsg model.tracksListModel
     in
-    ( { model | trackersListModel = nextHomeModel }
-    , Cmd.map TrackersMsg trackersCmd
+    ( { model | tracksListModel = nextHomeModel }
+    , Cmd.map TracksMsg trackersCmd
     , trackerSharedState
     )
 
@@ -92,6 +104,7 @@ updateTrackers sharedState model trackersMsg =
 updateHome : SharedState.SharedState -> Model -> Home.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateHome sharedState model trackersMsg =
     ( model, Cmd.none, SharedState.NoUpdate )
+
 
 view : (Msg -> msg) -> SharedState.SharedState -> Model -> Browser.Document msg
 view msgMapper sharedState model =
@@ -101,7 +114,7 @@ view msgMapper sharedState model =
                 HomePage ->
                     "Home"
 
-                TrackersList ->
+                TracksList ->
                     "Tracker List"
 
                 NotFound ->
@@ -118,7 +131,7 @@ view msgMapper sharedState model =
                         ]
                         [ text "page-title-home" ]
                     , button
-                        [ onClick (NavigateTo TrackersList)
+                        [ onClick (NavigateTo TracksList)
                         ]
                         [ text "page-title-settings" ]
                     ]
@@ -150,9 +163,9 @@ pageView sharedState model =
                 Home.view sharedState model.homeModel
                     |> Html.Styled.map HomeMsg
 
-            TrackersList ->
-                Trackers.view sharedState model.trackersListModel
-                    |> Html.Styled.map TrackersMsg
+            TracksList ->
+                Tracks.view sharedState model.tracksListModel
+                    |> Html.Styled.map TracksMsg
 
             NotFound ->
                 h1 [] [ text "404 :(" ]
@@ -174,23 +187,18 @@ matchRoute =
     Parser.oneOf
         [ -- Parser.map Map <| Parser.s "map" </> Parser.map Tracker Parser.int
           Parser.map HomePage (Parser.s "home")
-        , Parser.map TrackersList (Parser.s "trackers")
+        , Parser.map HomePage Parser.top
+        , Parser.map TracksList (Parser.s "trackers")
         ]
 
 
 routeToString : Route -> String
 routeToString route =
     case route of
-        -- Map tracker ->
-        --     "map"
-        -- Analyze tracker ->
-        --     "analyze"
         NotFound ->
             "/not-found"
 
-        -- AccessDenied ->
-        --     "access-denied"
-        TrackersList ->
+        TracksList ->
             "/trackers"
 
         HomePage ->
