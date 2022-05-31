@@ -50,6 +50,9 @@ type Error
     | ErrAuthorization OAuth.AuthorizationError
     | ErrHTTPGetUserInfo
 
-type alias Tracker =
+type alias Tracks =
     { id : Int
+    ,trackerId: Int
+    ,name: String
+    ,visitedWaypoints: Int
     }
