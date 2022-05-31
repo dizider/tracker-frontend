@@ -1,34 +1,27 @@
 module Types exposing (..)
 
+import Dict exposing (Dict)
 import OAuth
 import OAuth.Implicit as OAuth
 import Url exposing (Protocol(..), Url)
+import Json.Decode exposing (Decoder, at, dict, field, float, int, string, succeed)
+import Json.Decode.Pipeline exposing (required, requiredAt)
 
+type alias Translations =
+    Dict String String
 
-type alias RawFlags =
-    { state : Maybe (List Int)
-    , clientId : String
-    , token: Maybe String
+decodeTranslations : Decoder Translations
+decodeTranslations =
+    dict string
+
+type alias ViewConfiguration =
+    { title : String
     }
 
 
-type alias Flags =
-    { state : Maybe String
-    , clientId : String
-    , token: Maybe String
-    }
-
-
-
---
--- Model
---
-
-
-type alias Model =
-    { auth : AuthModel
-    , clientId : String
-    }
+type Page
+    = NotFound
+    | Trackers
 
 
 type alias AuthModel =
@@ -56,3 +49,7 @@ type Error
     = ErrStateMismatch
     | ErrAuthorization OAuth.AuthorizationError
     | ErrHTTPGetUserInfo
+
+type alias Tracker =
+    { id : Int
+    }

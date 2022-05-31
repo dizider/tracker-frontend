@@ -1,53 +1,42 @@
-module Main exposing (main, viewMap)
+module Main exposing (Msg(..), liftToMain, main)
 
 import Auth as Auth exposing (Msg(..), viewErrored)
-import Base64.Encode as Base64
 import Browser exposing (Document, application)
 import Browser.Navigation exposing (Key)
 import Bytes exposing (Bytes)
-import Bytes.Encode as Bytes
 import Delay exposing (TimeUnit(..))
-import Helpers as Helpers
+import Flags as Flags
 import Html as Html exposing (..)
 import Html.Attributes as Attributes exposing (..)
 import Html.Events as Events exposing (..)
-import PortFunnel.WebSocket exposing (Message)
 import Ports exposing (persistedToken, randomBytes)
-import Types exposing (Model)
+import Routing.Route as Route
+import SharedState as SharedState
+import Types as Types
 import Url exposing (Protocol(..), Url)
 
 
-main : Program Types.RawFlags Model Msg
-main =
-    application
-        { init =
-            processFlags >> init
-        , update =
-            update
-        , subscriptions =
-            subscriptions
-        , onUrlRequest =
-            always NoOp
-        , onUrlChange =
-            always NoOp
-        , view =
-            view
-                { title = "Tracker"
-                , btnClass = class "btn-google"
-                }
-        }
-
-
-processFlags : Types.RawFlags -> Types.Flags
-processFlags flags =
-    let
-        state =
-            Maybe.map Helpers.convertBytes flags.state
-    in
-    { state = state
-    , clientId = flags.clientId
-    , token = flags.token
+type alias Model =
+    { auth : Types.AuthModel
+    , url : Url.Url
+    , appState : AppState
     }
+
+
+type AppState
+    = NotReady
+    | Ready SharedState.SharedState Route.Model
+    | FailedToInitialize
+
+
+type Msg
+    = NoOp
+    | ChangedUrl Url
+    | ClickedLink Browser.UrlRequest
+    | RouterMsg Route.Msg
+    | AuthMessage Auth.Msg
+    | NewRandomBytes (List Int)
+    | NewPersistedToken String
 
 
 subscriptions : Model -> Sub Msg
@@ -58,68 +47,58 @@ subscriptions _ =
         ]
 
 
-{-| During the authentication flow, we'll run twice into the `init` function:
-
-  - The first time, for the application very first run. And we proceed with the `Idle` state,
-    waiting for the user (a.k.a you) to request a sign in.
-
-  - The second time, after a sign in has been requested, the user is redirected to the
-    authorization server and redirects the user back to our application, with an access
-    token and other fields as query parameters.
-
-When query params are present (and valid), we consider the user `Authorized`.
-
--}
-init : Types.Flags -> Url -> Key -> ( Model, Cmd Msg )
-init mflags origin navigationKey =
+init : Flags.Flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
+init flags origin navigationKey =
     let
-        auth =
-            Auth.init mflags origin navigationKey
+        initSharedState =
+            { navKey = navigationKey
+            , token = flags.token
+            , state = flags.state
+            }
+
+        ( routeModel, routeMsg ) =
+            Route.init origin
+
+        authModel =
+            Auth.initModel origin
+
+        -- (authModel, authCmd) =
+        --     Auth.init initSharedState origin navigationKey
+        _ =
+            Debug.log "Init" routeModel
     in
-    ( { auth = Tuple.first auth, clientId = "" }
-    , Cmd.map (\x -> AuthMessage x) (Tuple.second auth)
+    ( { auth = authModel
+      , url = origin
+      , appState = Ready initSharedState routeModel
+      }
+    , Cmd.map RouterMsg routeMsg
     )
-
-
-
---
--- Msg
---
-
-
-type Msg
-    = NoOp
-    | AuthMessage Auth.Msg
-    | NewRandomBytes (List Int)
-    | NewPersistedToken String
-
-
-
-{- On the JavaScript's side, we have:
-
-   app.ports.genRandomBytes.subscribe(n => {
-     const buffer = new Uint8Array(n);
-     crypto.getRandomValues(buffer);
-     const bytes = Array.from(buffer);
-     localStorage.setItem("bytes", bytes);
-     app.ports.randomBytes.send(bytes);
-   });
--}
---
--- Update
---
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ChangedUrl url ->
+            let
+                _ =
+                    Debug.log "Changed URL" url
+            in
+            updateRouter { model | url = url } (Route.ChangedUrl url)
+
+        RouterMsg routerMsg ->
+            let
+                _ =
+                    Debug.log "Updating router" routerMsg
+            in
+            updateRouter model routerMsg
+
         AuthMessage amsg ->
             let
                 updatedAuth =
                     Auth.update amsg model.auth
             in
             ( { model | auth = Tuple.first updatedAuth }
-            , Cmd.map AuthMessage (Tuple.second updatedAuth)
+            , Cmd.map liftToMain (Tuple.second updatedAuth)
             )
 
         NewRandomBytes bytes ->
@@ -128,16 +107,47 @@ update msg model =
                     Auth.update (Auth.GotRandomBytes bytes) model.auth
             in
             ( { model | auth = Tuple.first updatedAuth }
-            , Cmd.map AuthMessage (Tuple.second updatedAuth)
+            , Cmd.map liftToMain (Tuple.second updatedAuth)
             )
 
         NewPersistedToken token ->
             ( model
-            , Cmd.map (always AuthMessage (GotPersistedToken token)) Cmd.none
+            , Cmd.map (always liftToMain (GotPersistedToken token)) Cmd.none
             )
 
-        NoOp ->
+        -- TODO: add missing cases
+        _ ->
             noOp model
+
+
+updateRouter : Model -> Route.Msg -> ( Model, Cmd Msg )
+updateRouter model routerMsg =
+    case model.appState of
+        Ready sharedState routerModel ->
+            let
+                nextSharedState =
+                    SharedState.update sharedState sharedStateUpdate
+
+                ( nextRouterModel, routerCmd, sharedStateUpdate ) =
+                    Route.update sharedState routerMsg routerModel
+
+                _ =
+                    Debug.log "Updating router / model" nextRouterModel
+
+                _ =
+                    Debug.log "Updating router / message" sharedStateUpdate
+            in
+            ( { model | appState = Ready nextSharedState nextRouterModel }
+            , Cmd.map RouterMsg routerCmd
+            )
+
+        _ ->
+            let
+                _ =
+                    Debug.log "We got a router message even though the app is not ready?"
+                        routerMsg
+            in
+            ( model, Cmd.none )
 
 
 noOp : Model -> ( Model, Cmd Msg )
@@ -145,29 +155,19 @@ noOp model =
     ( model, Cmd.none )
 
 
-
---
--- View
---
-
-
-type alias ViewConfiguration msg =
-    { title : String
-    , btnClass : Html.Attribute msg
-    }
-
-
-view : ViewConfiguration Msg -> Model -> Document Msg
+view : Types.ViewConfiguration -> Model -> Document Msg
 view ({ title } as config) model =
     let
         bootstrap =
             []
     in
-    case model.auth.flow of
-        Types.Done user ->
-            { title = title
-            , body = bootstrap ++ [ mapView [] ]
-            }
+    case model.appState of
+        -- Types.Done user ->
+        --     { title = title
+        --     , body = bootstrap ++ [ mapView [] ]
+        --     }
+        Ready sharedState routerModel ->
+            Route.view RouterMsg sharedState routerModel
 
         _ ->
             { title = title
@@ -175,25 +175,7 @@ view ({ title } as config) model =
             }
 
 
-mapView : List (Html.Attribute msg) -> Html.Html msg
-mapView att =
-    Html.node "seznam-maps" [ id "maps", attribute "height" "100vh", attribute "width" "100vw" ] []
-
-
-viewMap : ViewConfiguration msg -> Model -> List (Html.Html Msg)
-viewMap config model =
-    [ case model.auth.flow of
-        Types.Authorized _ ->
-            mapView
-                [ style "height" "380px" ]
-
-        _ ->
-            mapView
-                [ style "height" "380px" ]
-    ]
-
-
-viewBody : ViewConfiguration Msg -> Model -> List (Html.Html Msg)
+viewBody : Types.ViewConfiguration -> Model -> List (Html.Html Msg)
 viewBody config model =
     let
         authorized =
@@ -229,13 +211,13 @@ viewBody config model =
                 Html.div [ class "flex" ]
                     [ viewErroredStep
                     ]
-                    :: List.map (\x -> Html.map AuthMessage x) (viewErrored err)
+                    :: List.map (\x -> Html.map liftToMain x) (viewErrored err)
     ]
 
 
-viewIdle : ViewConfiguration Msg -> List (Html.Html Msg)
-viewIdle { btnClass } =
-    List.map (Html.map AuthMessage) (Auth.form [])
+viewIdle : Types.ViewConfiguration -> List (Html.Html Msg)
+viewIdle _ =
+    List.map (Html.map liftToMain) (Auth.form [])
 
 
 viewAuthorized : List (Html.Html Msg)
@@ -244,15 +226,15 @@ viewAuthorized =
     ]
 
 
-viewUserInfo : ViewConfiguration Msg -> Types.UserInfo -> List (Html.Html Msg)
-viewUserInfo { btnClass } { name, picture, email } =
+viewUserInfo : Types.ViewConfiguration -> Types.UserInfo -> List (Html.Html Msg)
+viewUserInfo _ { name, picture, email } =
     [ Html.div [ class "flex", class "flex-column" ]
         [ Html.img [ class "avatar", Attributes.src picture ] []
         , Html.p [] [ Html.text name ]
         , Html.p [] [ Html.text email ]
         , Html.div []
             [ Html.button
-                [ Events.onClick (AuthMessage Auth.SignOutRequested), btnClass ]
+                [ Events.onClick (liftToMain Auth.SignOutRequested) ]
                 [ Html.text "Sign out" ]
             ]
         ]
@@ -273,7 +255,7 @@ viewErroredStep : Html.Html Msg
 viewErroredStep =
     Html.div
         [ class "step", class "step-errored" ]
-        [ Html.span [ style "left" "-50%" ] [ Html.h1 [] [Html.text "Authorization error"] ] ]
+        [ Html.span [ style "left" "-50%" ] [ Html.h1 [] [ Html.text "Authorization error" ] ] ]
 
 
 viewStep : Bool -> ( String, Html.Attribute Msg ) -> Html.Html Msg
@@ -304,3 +286,26 @@ viewStepSeparator isActive =
                    )
     in
     Html.span stepClass []
+
+
+liftToMain : Auth.Msg -> Msg
+liftToMain msg =
+    AuthMessage msg
+
+
+main : Program Flags.RawFlags Model Msg
+main =
+    application
+        { init =
+            Flags.decodeFlags >> init
+        , update =
+            update
+        , subscriptions =
+            subscriptions
+        , onUrlRequest = ClickedLink
+        , onUrlChange = ChangedUrl
+        , view =
+            view
+                { title = "Tracker"
+                }
+        }

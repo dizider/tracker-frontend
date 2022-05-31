@@ -1,4 +1,4 @@
-module Auth exposing (Msg(..), form, init, update, viewErrored)
+module Auth exposing (Msg(..), form, init, initModel, update, viewErrored)
 
 import Browser.Navigation as Navigation exposing (Key)
 import Config as Config exposing (translates)
@@ -12,8 +12,10 @@ import Json.Decode as Json
 import OAuth
 import OAuth.Implicit as OAuth
 import Ports exposing (genRandomBytes, getPersistedToken, persistToken)
-import Types
+import SharedState as SharedState
+import Types exposing (AuthModel)
 import Url exposing (Protocol(..), Url)
+import Url.Builder
 
 
 type alias Configuration =
@@ -36,6 +38,19 @@ type Msg
     | SignOutRequested
 
 
+initModel : Url -> AuthModel
+initModel origin =
+    let
+        redirectUri =
+            { origin | query = Nothing, fragment = Nothing }
+    in
+    {
+        redirectUri = redirectUri
+        ,flow = Types.Idle
+        ,token =  Nothing
+    }
+
+
 {-| During the authentication flow, we'll run twice into the `init` function:
 
   - The first time, for the application very first run. And we proceed with the `Idle` state,
@@ -48,8 +63,8 @@ type Msg
 When query params are present (and valid), we consider the user `Authorized`.
 
 -}
-init : Types.Flags -> Url -> Key -> ( Types.AuthModel, Cmd Msg )
-init mflags origin navigationKey =
+init : SharedState.SharedState -> Url -> Key -> ( Types.AuthModel, Cmd Msg )
+init sharedState origin navigationKey =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing }
@@ -61,7 +76,7 @@ init mflags origin navigationKey =
         OAuth.Empty ->
             let
                 token =
-                    OAuth.tokenFromString (Maybe.withDefault "" mflags.token)
+                    OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
 
                 flow =
                     Maybe.map Types.Authorized token
@@ -85,11 +100,11 @@ init mflags origin navigationKey =
         -- We remember any previously generated state  state using the browser's local storage
         -- and give it back (if present) to the elm application upon start
         OAuth.Success { token, state } ->
-            case mflags.state of
+            case sharedState.state of
                 Nothing ->
                     ( { flow = Types.Errored Types.ErrStateMismatch
                       , redirectUri = redirectUri
-                      , token = OAuth.tokenFromString (Maybe.withDefault "" mflags.token)
+                      , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
                       }
                     , clearUrl
                     )
@@ -98,7 +113,7 @@ init mflags origin navigationKey =
                     if state /= Just bytes then
                         ( { flow = Types.Errored Types.ErrStateMismatch
                           , redirectUri = redirectUri
-                          , token = OAuth.tokenFromString (Maybe.withDefault "" mflags.token)
+                          , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
                           }
                         , clearUrl
                         )
@@ -106,7 +121,7 @@ init mflags origin navigationKey =
                     else
                         ( { flow = Types.Authorized token
                           , redirectUri = redirectUri
-                          , token = OAuth.tokenFromString (Maybe.withDefault "" mflags.token)
+                          , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
                           }
                         , Cmd.batch
                             -- Artificial delay to make the live demo easier to follow.
@@ -120,7 +135,7 @@ init mflags origin navigationKey =
         OAuth.Error error ->
             ( { flow = Types.Errored <| Types.ErrAuthorization error
               , redirectUri = redirectUri
-              , token = OAuth.tokenFromString (Maybe.withDefault "" mflags.token)
+              , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
               }
             , Cmd.batch
                 [ Ports.removeToken True

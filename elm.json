@@ -6,6 +6,7 @@
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
+            "NoRedInk/elm-json-decode-pipeline": "1.0.1",
             "andrewMacmurray/elm-delay": "3.0.0",
             "billstclair/elm-websocket-client": "4.1.0",
             "chelovek0v/bbase64": "1.0.1",
@@ -15,22 +16,23 @@
             "elm/html": "1.0.0",
             "elm/http": "2.0.0",
             "elm/json": "1.1.3",
+            "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "krisajenkins/remotedata": "6.0.1",
+            "ohanhi/remotedata-http": "4.0.0",
+            "rtfeldman/elm-css": "17.1.1",
             "solcates/solcates-elm-oauth2": "1.0.1"
         },
         "indirect": {
             "Janiczek/cmd-extra": "1.1.0",
-            "NoRedInk/elm-json-decode-pipeline": "1.0.1",
-            "avh4/elm-color": "1.0.0",
             "billstclair/elm-port-funnel": "1.2.0",
             "danfishgold/base64-bytes": "1.1.0",
             "elm/file": "1.0.5",
             "elm/regex": "1.0.0",
-            "elm/time": "1.0.0",
             "elm/virtual-dom": "1.0.3",
             "elm-community/list-extra": "8.5.2",
             "folkertdev/elm-sha2": "1.0.0",
+            "robinheghan/murmur3": "1.0.0",
             "rtfeldman/elm-hex": "1.0.0"
         }
     },
@@ -39,6 +41,7 @@
             "elm-explorations/test": "1.0.0"
         },
         "indirect": {
+            "avh4/elm-color": "1.0.0",
             "elm/random": "1.0.0"
         }
     }
