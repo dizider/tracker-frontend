@@ -16,3 +16,7 @@ port getPersistedToken : Bool -> Cmd msg
 port persistedToken : (String -> msg) -> Sub msg
 
 port removeToken : Bool -> Cmd msg
+
+port addTrack : (Int, String) -> Cmd msg
+
+port removeTrack : Int -> Cmd msg

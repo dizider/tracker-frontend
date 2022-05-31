@@ -9,11 +9,13 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (href)
 import Html.Styled.Events exposing (..)
 import Pages.Home as Home
+import Pages.Map as Map
 import Pages.Tracks as Tracks
 import SharedState as SharedState
+import Types as Types
 import Url exposing (Url)
 import Url.Parser as Parser exposing (..)
-import Types as Types
+
 
 type Tracker
     = Tracker Int
@@ -24,6 +26,7 @@ type Route
     | TracksList
     | HomePage
     | AuthPage
+    | MapPage
 
 
 type Msg
@@ -32,6 +35,7 @@ type Msg
     | TracksMsg Tracks.Msg
     | HomeMsg Home.Msg
     | AuthMsg Auth.Msg
+    | MapMsg Map.Msg
 
 
 type alias Model =
@@ -39,6 +43,7 @@ type alias Model =
     , tracksListModel : Tracks.Model
     , homeModel : Home.Model
     , authModel : Auth.Model
+    , mapModel : Map.Model
     }
 
 
@@ -47,18 +52,24 @@ init sharedState url =
     let
         ( tracksModel, trackersMsg ) =
             Tracks.init
-        (authModel, authMsg) = 
+
+        ( authModel, authMsg ) =
             Auth.init sharedState url sharedState.navKey
+
+        ( mapModel, mapMsg ) =
+            Map.init []
     in
     ( { tracksListModel = tracksModel
       , homeModel = Home.initModel
       , route = parseUrl url
       , authModel = authModel
+      , mapModel = mapModel
       }
     , Cmd.batch
         [ Cmd.map HomeMsg Cmd.none
         , Cmd.map TracksMsg trackersMsg
         , Cmd.map AuthMsg authMsg
+        , Cmd.map MapMsg mapMsg
         ]
     )
 
@@ -68,7 +79,8 @@ update sharedState msg model =
     case msg of
         AuthMsg amsg ->
             let
-                _ = Debug.log "Route AuthMsg" sharedState
+                _ =
+                    Debug.log "Route AuthMsg" sharedState
             in
             updateAuth sharedState model amsg
 
@@ -97,6 +109,9 @@ update sharedState msg model =
 
         HomeMsg hmsg ->
             updateHome sharedState model hmsg
+
+        MapMsg mmsg ->
+            updateMap sharedState model mmsg
 
 
 updateAuth : SharedState.SharedState -> Model -> Auth.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
@@ -131,6 +146,18 @@ updateHome sharedState model trackersMsg =
     ( model, Cmd.none, SharedState.NoUpdate )
 
 
+updateMap : SharedState.SharedState -> Model -> Map.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+updateMap sharedState model mapMsg =
+    let
+        ( newModel, mapCmd ) =
+            Map.update mapMsg model.mapModel
+    in
+    ( { model | mapModel = newModel }
+    , Cmd.map MapMsg mapCmd
+    , SharedState.NoUpdate
+    )
+
+
 view : (Msg -> msg) -> SharedState.SharedState -> Model -> Browser.Document msg
 view msgMapper sharedState model =
     let
@@ -147,6 +174,9 @@ view msgMapper sharedState model =
 
                 AuthPage ->
                     "Autorization"
+
+                MapPage ->
+                    "Map"
 
         body =
             div []
@@ -198,9 +228,14 @@ pageView sharedState model =
             AuthPage ->
                 case model.authModel.flow of
                     Types.Done userInfo ->
-                        (Html.Styled.text userInfo.email)
-                    _ -> 
-                        (Html.Styled.map AuthMsg) Auth.viewIdle
+                        Html.Styled.text userInfo.email
+
+                    _ ->
+                        Html.Styled.map AuthMsg Auth.viewIdle
+
+            MapPage ->
+                Map.view sharedState model.mapModel
+                    |> Html.Styled.map MapMsg
 
             NotFound ->
                 h1 [] [ text "404 :(" ]
@@ -220,11 +255,12 @@ parseUrl url =
 matchRoute : Parser.Parser (Route -> a) a
 matchRoute =
     Parser.oneOf
-        [ -- Parser.map Map <| Parser.s "map" </> Parser.map Tracker Parser.int
+        [ --Parser.map MapPage <| Parser.s "map" </> Parser.map Tracker Parser.int
           Parser.map HomePage (Parser.s "home")
         , Parser.map HomePage Parser.top
         , Parser.map TracksList (Parser.s "trackers")
         , Parser.map AuthPage (Parser.s "auth")
+        , Parser.map AuthPage (Parser.s "map")
         ]
 
 
@@ -242,3 +278,6 @@ routeToString route =
 
         AuthPage ->
             "/auth"
+
+        MapPage ->
+            "/map"
