@@ -13,7 +13,7 @@ import Pages.Tracks as Tracks
 import SharedState as SharedState
 import Url exposing (Url)
 import Url.Parser as Parser exposing (..)
-
+import Types as Types
 
 type Tracker
     = Tracker Int
@@ -23,6 +23,7 @@ type Route
     = NotFound
     | TracksList
     | HomePage
+    | AuthPage
 
 
 type Msg
@@ -30,28 +31,34 @@ type Msg
     | NavigateTo Route
     | TracksMsg Tracks.Msg
     | HomeMsg Home.Msg
+    | AuthMsg Auth.Msg
 
 
 type alias Model =
     { route : Route
     , tracksListModel : Tracks.Model
     , homeModel : Home.Model
+    , authModel : Auth.Model
     }
 
 
-init : Url -> ( Model, Cmd Msg )
-init url =
+init : SharedState.SharedState -> Url -> ( Model, Cmd Msg )
+init sharedState url =
     let
         ( tracksModel, trackersMsg ) =
             Tracks.init
+        (authModel, authMsg) = 
+            Auth.init sharedState url sharedState.navKey
     in
     ( { tracksListModel = tracksModel
       , homeModel = Home.initModel
       , route = parseUrl url
+      , authModel = authModel
       }
     , Cmd.batch
         [ Cmd.map HomeMsg Cmd.none
         , Cmd.map TracksMsg trackersMsg
+        , Cmd.map AuthMsg authMsg
         ]
     )
 
@@ -59,6 +66,12 @@ init url =
 update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 update sharedState msg model =
     case msg of
+        AuthMsg amsg ->
+            let
+                _ = Debug.log "Route AuthMsg" sharedState
+            in
+            updateAuth sharedState model amsg
+
         ChangedUrl location ->
             ( { model | route = parseUrl location }
             , Cmd.none
@@ -84,6 +97,18 @@ update sharedState msg model =
 
         HomeMsg hmsg ->
             updateHome sharedState model hmsg
+
+
+updateAuth : SharedState.SharedState -> Model -> Auth.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+updateAuth _ model authMsg =
+    let
+        ( newModel, authCmd ) =
+            Auth.update authMsg model.authModel
+    in
+    ( { model | authModel = newModel }
+    , Cmd.map AuthMsg authCmd
+    , SharedState.NoUpdate
+    )
 
 
 updateTrackers : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
@@ -119,6 +144,9 @@ view msgMapper sharedState model =
 
                 NotFound ->
                     "NotFound"
+
+                AuthPage ->
+                    "Autorization"
 
         body =
             div []
@@ -167,6 +195,13 @@ pageView sharedState model =
                 Tracks.view sharedState model.tracksListModel
                     |> Html.Styled.map TracksMsg
 
+            AuthPage ->
+                case model.authModel.flow of
+                    Types.Done userInfo ->
+                        (Html.Styled.text userInfo.email)
+                    _ -> 
+                        (Html.Styled.map AuthMsg) Auth.viewIdle
+
             NotFound ->
                 h1 [] [ text "404 :(" ]
         ]
@@ -189,6 +224,7 @@ matchRoute =
           Parser.map HomePage (Parser.s "home")
         , Parser.map HomePage Parser.top
         , Parser.map TracksList (Parser.s "trackers")
+        , Parser.map AuthPage (Parser.s "auth")
         ]
 
 
@@ -203,3 +239,6 @@ routeToString route =
 
         HomePage ->
             "/home"
+
+        AuthPage ->
+            "/auth"

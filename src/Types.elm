@@ -24,13 +24,6 @@ type Page
     | Trackers
 
 
-type alias AuthModel =
-    { redirectUri : Url
-    , flow : AuthFlow
-    , token : Maybe OAuth.Token
-    }
-
-
 type AuthFlow
     = Idle
     | Authorized OAuth.Token

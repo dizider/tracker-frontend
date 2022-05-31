@@ -17,7 +17,7 @@ import Url exposing (Protocol(..), Url)
 
 
 type alias Model =
-    { auth : Types.AuthModel
+    { auth : Auth.Model
     , url : Url.Url
     , appState : AppState
     }
@@ -57,7 +57,7 @@ init flags origin navigationKey =
             }
 
         ( routeModel, routeMsg ) =
-            Route.init origin
+            Route.init initSharedState origin
 
         authModel =
             Auth.initModel origin
@@ -94,6 +94,8 @@ update msg model =
 
         AuthMessage amsg ->
             let
+                _ = 
+                    Debug.log "Main update" amsg
                 updatedAuth =
                     Auth.update amsg model.auth
             in
@@ -171,53 +173,49 @@ view ({ title } as config) model =
 
         _ ->
             { title = title
-            , body = viewBody config model
+            , body = [Html.div [] [Html.text "nothing here"]]
             }
 
 
-viewBody : Types.ViewConfiguration -> Model -> List (Html.Html Msg)
-viewBody config model =
-    let
-        authorized =
-            Html.div [ class "flex" ]
-                [ viewAuthorizationStep True
-                , viewStepSeparator True
-                , viewGetUserInfoStep False
-                ]
-                :: viewAuthorized
-    in
-    [ Html.div [ class "flex", class "flex-column", class "flex-space-around" ] <|
-        case model.auth.flow of
-            Types.Idle ->
-                Html.div [ class "flex" ]
-                    [ viewAuthorizationStep False
-                    , viewStepSeparator False
-                    , viewGetUserInfoStep False
-                    ]
-                    :: viewIdle config
+-- viewBody : Types.ViewConfiguration -> Model -> List (Html.Html Msg)
+-- viewBody config model =
+--     let
+--         authorized =
+--             Html.div [ class "flex" ]
+--                 [ viewAuthorizationStep True
+--                 , viewStepSeparator True
+--                 , viewGetUserInfoStep False
+--                 ]
+--                 :: viewAuthorized
+--     in
+--     [ Html.div [ class "flex", class "flex-column", class "flex-space-around" ] <|
+--         case model.auth.flow of
+--             Types.Idle ->
+--                 Html.div [ class "flex" ]
+--                     [ viewAuthorizationStep False
+--                     , viewStepSeparator False
+--                     , viewGetUserInfoStep False
+--                     ]
+--                     :: viewIdle config
 
-            Types.Authorized _ ->
-                authorized
+--             Types.Authorized _ ->
+--                 authorized
 
-            Types.Done userInfo ->
-                Html.div [ class "flex" ]
-                    [ viewAuthorizationStep True
-                    , viewStepSeparator True
-                    , viewGetUserInfoStep True
-                    ]
-                    :: viewUserInfo config userInfo
+--             Types.Done userInfo ->
+--                 Html.div [ class "flex" ]
+--                     [ viewAuthorizationStep True
+--                     , viewStepSeparator True
+--                     , viewGetUserInfoStep True
+--                     ]
+--                     :: viewUserInfo config userInfo
 
-            Types.Errored err ->
-                Html.div [ class "flex" ]
-                    [ viewErroredStep
-                    ]
-                    :: List.map (\x -> Html.map liftToMain x) (viewErrored err)
-    ]
+--             Types.Errored err ->
+--                 Html.div [ class "flex" ]
+--                     [ viewErroredStep
+--                     ]
+--                     :: List.map (\x -> Html.map liftToMain x) (viewErrored err)
+--     ]
 
-
-viewIdle : Types.ViewConfiguration -> List (Html.Html Msg)
-viewIdle _ =
-    List.map (Html.map liftToMain) (Auth.form [])
 
 
 viewAuthorized : List (Html.Html Msg)

@@ -1,19 +1,20 @@
-module Auth exposing (Msg(..), form, init, initModel, update, viewErrored)
+module Auth exposing (Model, Msg(..), form, init, initModel, update, viewErrored, viewIdle)
 
 import Browser.Navigation as Navigation exposing (Key)
 import Config as Config exposing (translates)
 import Delay exposing (TimeUnit(..), after)
 import Helpers exposing (convertBytes, defaultHttpsUrl)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events as Events exposing (..)
+import Html
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (class, href, id)
+import Html.Styled.Events as Events exposing (onClick)
 import Http
 import Json.Decode as Json
 import OAuth
 import OAuth.Implicit as OAuth
 import Ports exposing (genRandomBytes, getPersistedToken, persistToken)
 import SharedState as SharedState
-import Types exposing (AuthModel)
+import Types as Types
 import Url exposing (Protocol(..), Url)
 import Url.Builder
 
@@ -38,16 +39,22 @@ type Msg
     | SignOutRequested
 
 
-initModel : Url -> AuthModel
+type alias Model =
+    { redirectUri : Url
+    , flow : Types.AuthFlow
+    , token : Maybe OAuth.Token
+    }
+
+
+initModel : Url -> Model
 initModel origin =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing }
     in
-    {
-        redirectUri = redirectUri
-        ,flow = Types.Idle
-        ,token =  Nothing
+    { redirectUri = redirectUri
+    , flow = Types.Idle
+    , token = Nothing
     }
 
 
@@ -63,7 +70,7 @@ initModel origin =
 When query params are present (and valid), we consider the user `Authorized`.
 
 -}
-init : SharedState.SharedState -> Url -> Key -> ( Types.AuthModel, Cmd Msg )
+init : SharedState.SharedState -> Url -> Key -> ( Model, Cmd Msg )
 init sharedState origin navigationKey =
     let
         redirectUri =
@@ -181,14 +188,14 @@ getUserInfo { userInfoDecoder, userInfoEndpoint } token =
         }
 
 
-signInRequested : Types.AuthModel -> ( Types.AuthModel, Cmd Msg )
+signInRequested : Model -> ( Model, Cmd Msg )
 signInRequested model =
     ( { model | flow = Types.Idle }
     , genRandomBytes 16
     )
 
 
-gotRandomBytes : Types.AuthModel -> List Int -> ( Types.AuthModel, Cmd Msg )
+gotRandomBytes : Model -> List Int -> ( Model, Cmd Msg )
 gotRandomBytes model bytes =
     let
         state =
@@ -210,14 +217,14 @@ gotRandomBytes model bytes =
     )
 
 
-userInfoRequested : Types.AuthModel -> OAuth.Token -> ( Types.AuthModel, Cmd Msg )
+userInfoRequested : Model -> OAuth.Token -> ( Model, Cmd Msg )
 userInfoRequested model token =
     ( { model | flow = Types.Authorized token }
     , getUserInfo configuration token
     )
 
 
-gotUserInfo : Types.AuthModel -> Result Http.Error Types.UserInfo -> ( Types.AuthModel, Cmd Msg )
+gotUserInfo : Model -> Result Http.Error Types.UserInfo -> ( Model, Cmd Msg )
 gotUserInfo model userInfoResponse =
     case userInfoResponse of
         Err _ ->
@@ -231,7 +238,7 @@ gotUserInfo model userInfoResponse =
             )
 
 
-signOutRequested : Types.AuthModel -> ( Types.AuthModel, Cmd Msg )
+signOutRequested : Model -> ( Model, Cmd Msg )
 signOutRequested model =
     ( { model | flow = Types.Idle }
     , Navigation.load (Url.toString model.redirectUri)
@@ -247,9 +254,24 @@ oauthErrorToString { error, errorDescription } =
     OAuth.errorCodeToString error ++ ": " ++ desc
 
 
-viewErrored : Types.Error -> List (Html Msg)
+view : Model -> Html Msg
+view model =
+    case model.flow of
+        Types.Errored err ->
+            viewErrored err
+        -- Types.Done userInfo ->
+            -- view
+        _ -> 
+            viewIdle
+
+viewIdle : Html Msg
+viewIdle =
+    form
+
+
+viewErrored : Types.Error -> Html Msg
 viewErrored error =
-    [ div [ class "alert alert-danger" ] [ viewError error ] ]
+    div [ class "alert alert-danger" ] [ viewError error ]
 
 
 viewError : Types.Error -> Html Msg
@@ -266,12 +288,12 @@ viewError e =
                 "Unable to retrieve user info: HTTP request failed."
 
 
-noOp : Types.AuthModel -> ( Types.AuthModel, Cmd Msg )
+noOp : Model -> ( Model, Cmd Msg )
 noOp model =
     ( model, Cmd.none )
 
 
-update : Msg -> Types.AuthModel -> ( Types.AuthModel, Cmd Msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model.flow, msg ) of
         ( Types.Idle, SignInRequested ) ->
@@ -293,7 +315,7 @@ update msg model =
             noOp model
 
 
-isAuthorized : Types.AuthModel -> Bool
+isAuthorized : Model -> Bool
 isAuthorized model =
     case model.flow of
         Types.Authorized token ->
@@ -303,22 +325,22 @@ isAuthorized model =
             False
 
 
-form : List (Html.Html Msg) -> List (Html.Html Msg)
-form page =
-    page
-        ++ [ div [ class "background" ]
-                [-- div [ class "shape" ] []
-                 -- , div [ class "shape" ] []
+form : Html Msg
+form =
+    div []
+        [ div [ class "background" ]
+            [-- div [ class "shape" ] []
+             -- , div [ class "shape" ] []
+            ]
+        , div [ class "login-form" ]
+            [ div [ class "label" ]
+                [ h3 [] [ text (Config.translates "login-label") ]
                 ]
-           , div [ class "login-form" ]
-                [ div [ class "label" ]
-                    [ Html.h3 [] [ Html.text (Config.translates "login-label") ]
-                    ]
-                , div [ class "label" ] [ Html.text (Config.translates "login-message") ]
-                , div []
-                    [ Html.button
-                        [ Events.onClick SignInRequested, class "login-button" ]
-                        [ Html.text (Config.translates "login-button") ]
-                    ]
+            , div [ class "label" ] [ text (Config.translates "login-message") ]
+            , div []
+                [ button
+                    [ Events.onClick SignInRequested, class "login-button" ]
+                    [ text (Config.translates "login-button") ]
                 ]
-           ]
+            ]
+        ]
