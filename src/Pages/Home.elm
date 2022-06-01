@@ -8,7 +8,7 @@ import Html.Styled.Events exposing (..)
 import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http as Http
 import SharedState as SharedState
-import Types exposing (Tracks)
+import Types exposing (Track)
 
 
 type alias Model =

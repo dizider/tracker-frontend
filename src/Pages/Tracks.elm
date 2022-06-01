@@ -1,24 +1,27 @@
 module Pages.Tracks exposing (..)
 
+import Browser.Navigation exposing (pushUrl)
 import Decoders as Decoders
 import Html
 import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes exposing (href, src, class)
-import Html.Styled.Events exposing (..)
+import Html.Styled.Attributes exposing (class, href, src)
+import Html.Styled.Events as Events exposing (..)
 import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http as Http
+import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
-import Types exposing (Tracks)
+import Types exposing (Track)
 
 
 type alias Model =
-    { listOfTracks : WebData (List Tracks)
+    { listOfTracks : WebData (List Track)
     }
 
 
 type Msg
     = NoOp
-    | HandleTracks (WebData (List Tracks))
+    | HandleTracks (WebData (List Track))
+    | NavigateTo TrackId
     | ReloadData
 
 
@@ -71,22 +74,30 @@ update sharedState msg model =
             , SharedState.NoUpdate
             )
 
+        NavigateTo track ->
+            ( model, pushUrl sharedState.navKey (routeToString (MapPage (Just track))), SharedState.NoUpdate )
+
         NoOp ->
             ( model, Cmd.none, SharedState.NoUpdate )
 
 
 view : SharedState.SharedState -> Model -> Html Msg
 view sharedState model =
-    let
-        _ =
-            Debug.log "" model
-    in
     case model.listOfTracks of
-        Success data -> 
+        Success data ->
             div []
                 [ h1 [] [ text "Tracks" ]
                 , data
-                    |> List.map (\l -> div [] [button [class "track-button"] [ text l.name ]])
-                    |> div [class "tracks"]
+                    |> List.map
+                        (\track ->
+                            let
+                                trackId =
+                                    Helpers.TrackId track.id
+                            in
+                            div [] [ button [ class "track-button", Events.onClick (NavigateTo trackId) ] [ div [] [text track.name], p [] [text (String.fromInt track.id)] ] ]
+                        )
+                    |> div [ class "tracks" ]
                 ]
-        _ -> div [] [text "No data"]
+
+        _ ->
+            div [] [ text "No data" ]

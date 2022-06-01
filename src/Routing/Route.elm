@@ -6,27 +6,17 @@ import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import Html
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (href)
+import Html.Styled.Attributes as Attributes exposing (href)
 import Html.Styled.Events exposing (..)
 import Pages.Home as Home
 import Pages.Map as Map
 import Pages.Tracks as Tracks
+import Routing.Helpers exposing (..)
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Url)
 import Url.Parser as Parser exposing (..)
-
-
-type Tracker
-    = Tracker Int
-
-
-type Route
-    = NotFound
-    | TracksList
-    | HomePage
-    | AuthPage
-    | MapPage
+import Url.Parser.Query as Query
 
 
 type Msg
@@ -70,6 +60,7 @@ init sharedState url =
         , Cmd.map TracksMsg trackersMsg
         , Cmd.map AuthMsg authMsg
         , Cmd.map MapMsg mapMsg
+        , updatePage url
         ]
     )
 
@@ -78,15 +69,11 @@ update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedStat
 update sharedState msg model =
     case msg of
         AuthMsg amsg ->
-            let
-                _ =
-                    Debug.log "Route AuthMsg" sharedState
-            in
             updateAuth sharedState model amsg
 
         ChangedUrl location ->
             ( { model | route = parseUrl location }
-            , Cmd.none
+            , updatePage location
             , SharedState.NoUpdate
             )
 
@@ -97,6 +84,24 @@ update sharedState msg model =
                     , Cmd.batch [ Cmd.map TracksMsg Tracks.fetchData, Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
                     , SharedState.NoUpdate
                     )
+
+                MapPage mtrackId ->
+                    let
+                        _ =
+                            Debug.log "Upadate map" mtrackId
+                    in
+                    case mtrackId of
+                        Just id ->
+                            ( model
+                            , Cmd.batch [ Cmd.map MapMsg (Map.fetchData [ id ]), Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
+                            , SharedState.NoUpdate
+                            )
+
+                        Nothing ->
+                            ( model
+                            , Browser.Navigation.pushUrl sharedState.navKey (routeToString route)
+                            , SharedState.NoUpdate
+                            )
 
                 _ ->
                     ( model
@@ -114,6 +119,34 @@ update sharedState msg model =
             updateMap sharedState model mmsg
 
 
+updatePage : Url -> Cmd Msg
+updatePage url =
+    case parseUrl url of
+        MapPage mtrackId ->
+            let
+                _ =
+                    Debug.log "Upadate map" mtrackId
+            in
+            case mtrackId of
+                Just id ->
+                    Cmd.map MapMsg (Map.fetchData [ id ])
+
+                Nothing ->
+                    Cmd.none
+
+        NotFound ->
+            Cmd.none
+
+        TracksList ->
+            Cmd.none
+
+        HomePage ->
+            Cmd.none
+
+        AuthPage ->
+            Cmd.none
+
+
 updateAuth : SharedState.SharedState -> Model -> Auth.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateAuth _ model authMsg =
     let
@@ -129,9 +162,8 @@ updateAuth _ model authMsg =
 updateTrackers : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateTrackers sharedState model trackersMsg =
     let
-        _ =
-            Debug.log "updateTrackers" ""
-
+        -- _ =
+        -- Debug.log "updateTrackers" ""
         ( nextHomeModel, trackersCmd, trackerSharedState ) =
             Tracks.update sharedState trackersMsg model.tracksListModel
     in
@@ -175,13 +207,22 @@ view msgMapper sharedState model =
                 AuthPage ->
                     "Autorization"
 
-                MapPage ->
-                    "Map"
+                MapPage mtrack ->
+                    case mtrack of
+                        Nothing ->
+                            "Map"
+
+                        Just (TrackId track) ->
+                            let
+                                _ =
+                                    Debug.log "Track id" track
+                            in
+                            "Track" ++ String.fromInt track
 
         body =
             div []
                 [ header []
-                    [ h1 [] [ text "site-title" ]
+                    [ h1 [] [] --text "site-title" ]
                     ]
                 , nav []
                     [ button
@@ -195,12 +236,10 @@ view msgMapper sharedState model =
                     ]
                 , pageView sharedState model
                 , footer []
-                    [ text ("footer-github-before" ++ " ")
-                    , a
-                        [ href "https://github.com/ohanhi/elm-shared-state/"
+                    [ a
+                        [ Attributes.href "https://github.com/litvinov-tabor2022"
                         ]
                         [ text "Github" ]
-                    , text "footer-github-after"
                     ]
                 ]
     in
@@ -233,7 +272,7 @@ pageView sharedState model =
                     _ ->
                         Html.Styled.map AuthMsg Auth.viewIdle
 
-            MapPage ->
+            MapPage mtrack ->
                 Map.view sharedState model.mapModel
                     |> Html.Styled.map MapMsg
 
@@ -260,24 +299,12 @@ matchRoute =
         , Parser.map HomePage Parser.top
         , Parser.map TracksList (Parser.s "trackers")
         , Parser.map AuthPage (Parser.s "auth")
-        , Parser.map AuthPage (Parser.s "map")
+
+        -- , Parser.map MapPage (Parser.s "map")
+        , Parser.map MapPage <| Parser.s "map" <?> Query.map (Maybe.map TrackId) mapParser
         ]
 
 
-routeToString : Route -> String
-routeToString route =
-    case route of
-        NotFound ->
-            "/not-found"
-
-        TracksList ->
-            "/trackers"
-
-        HomePage ->
-            "/home"
-
-        AuthPage ->
-            "/auth"
-
-        MapPage ->
-            "/map"
+mapParser : Query.Parser (Maybe Int)
+mapParser =
+    Query.int "track"

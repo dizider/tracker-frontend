@@ -2,7 +2,7 @@ module Main exposing (Msg(..), liftToMain, main)
 
 import Auth as Auth exposing (Msg(..), viewErrored)
 import Browser exposing (Document, application)
-import Browser.Navigation exposing (Key)
+import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
 import Delay exposing (TimeUnit(..))
 import Flags as Flags
@@ -20,6 +20,7 @@ type alias Model =
     { auth : Auth.Model
     , url : Url.Url
     , appState : AppState
+    , key : Navigation.Key
     }
 
 
@@ -47,7 +48,7 @@ subscriptions _ =
         ]
 
 
-init : Flags.Flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
+init : Flags.Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init flags origin navigationKey =
     let
         initSharedState =
@@ -70,6 +71,7 @@ init flags origin navigationKey =
     ( { auth = authModel
       , url = origin
       , appState = Ready initSharedState routeModel
+      , key = navigationKey
       }
     , Cmd.map RouterMsg routeMsg
     )
@@ -94,8 +96,9 @@ update msg model =
 
         AuthMessage amsg ->
             let
-                _ = 
+                _ =
                     Debug.log "Main update" amsg
+
                 updatedAuth =
                     Auth.update amsg model.auth
             in
@@ -117,7 +120,18 @@ update msg model =
             , Cmd.map (always liftToMain (GotPersistedToken token)) Cmd.none
             )
 
-        -- TODO: add missing cases
+        ClickedLink urlRequest ->
+            ( model
+            , case urlRequest of
+                Browser.Internal url ->
+                    url
+                        |> Url.toString
+                        |> Navigation.pushUrl model.key
+
+                Browser.External href ->
+                    Navigation.load href
+            )
+
         _ ->
             noOp model
 
@@ -133,11 +147,14 @@ updateRouter model routerMsg =
                 ( nextRouterModel, routerCmd, sharedStateUpdate ) =
                     Route.update sharedState routerMsg routerModel
 
+                -- _ =
+                --     Debug.log "Updating router / model" nextRouterModel
+                -- _ =
+                --     Debug.log "Updating router / old model" routerModel
+                -- _ =
+                --     Debug.log "Updating router / shared state" sharedStateUpdate
                 _ =
-                    Debug.log "Updating router / model" nextRouterModel
-
-                _ =
-                    Debug.log "Updating router / message" sharedStateUpdate
+                    Debug.log "Updating router / msg" routerMsg
             in
             ( { model | appState = Ready nextSharedState nextRouterModel }
             , Cmd.map RouterMsg routerCmd
@@ -173,49 +190,8 @@ view ({ title } as config) model =
 
         _ ->
             { title = title
-            , body = [Html.div [] [Html.text "nothing here"]]
+            , body = [ Html.div [] [ Html.text "nothing here" ] ]
             }
-
-
--- viewBody : Types.ViewConfiguration -> Model -> List (Html.Html Msg)
--- viewBody config model =
---     let
---         authorized =
---             Html.div [ class "flex" ]
---                 [ viewAuthorizationStep True
---                 , viewStepSeparator True
---                 , viewGetUserInfoStep False
---                 ]
---                 :: viewAuthorized
---     in
---     [ Html.div [ class "flex", class "flex-column", class "flex-space-around" ] <|
---         case model.auth.flow of
---             Types.Idle ->
---                 Html.div [ class "flex" ]
---                     [ viewAuthorizationStep False
---                     , viewStepSeparator False
---                     , viewGetUserInfoStep False
---                     ]
---                     :: viewIdle config
-
---             Types.Authorized _ ->
---                 authorized
-
---             Types.Done userInfo ->
---                 Html.div [ class "flex" ]
---                     [ viewAuthorizationStep True
---                     , viewStepSeparator True
---                     , viewGetUserInfoStep True
---                     ]
---                     :: viewUserInfo config userInfo
-
---             Types.Errored err ->
---                 Html.div [ class "flex" ]
---                     [ viewErroredStep
---                     ]
---                     :: List.map (\x -> Html.map liftToMain x) (viewErrored err)
---     ]
-
 
 
 viewAuthorized : List (Html.Html Msg)

@@ -96,7 +96,7 @@ init sharedState origin navigationKey =
               , redirectUri = redirectUri
               , token = token
               }
-            , Cmd.batch [ after 750 Millisecond UserInfoRequested, clearUrl ]
+            , after 750 Millisecond UserInfoRequested
             )
 
         -- It is important to set a `state` when making the authorization request
@@ -259,10 +259,12 @@ view model =
     case model.flow of
         Types.Errored err ->
             viewErrored err
+
         -- Types.Done userInfo ->
-            -- view
-        _ -> 
+        -- view
+        _ ->
             viewIdle
+
 
 viewIdle : Html Msg
 viewIdle =
