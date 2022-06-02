@@ -11,6 +11,7 @@ script.onload = initApp;
 
 const rootNode = document.getElementById('root')
 
+let app
 let map
 let lineColor = "#f00"
 let lastPosMarkerCard
@@ -18,8 +19,7 @@ let markersLayer
 let liveMarkers = {} // last positions of all live tracks
 
 let rootUrl = "***REMOVED***" //window.location.host
-let ssl = (window.location.protocol === "https:")
-let wsUrl = "wss" + (ssl ? "s" : "") + "://" + rootUrl + "/subscribe";
+let wsUrl = "wss://" + rootUrl + "/subscribe";
 let wsSocket = new WebSocket(wsUrl)
 
 console.log(wsUrl)
@@ -30,7 +30,7 @@ function makeMarker(lat, lon, title, text, img) {
     lastPosMarkerCard.getBody().innerHTML = ""
 
     let markerContent = JAK.mel("div")
-    let pic = JAK.mel("img", {src: img})
+    let pic = JAK.mel("img", { src: img })
     markerContent.appendChild(pic)
 
     let markerTitle = JAK.mel("div", {}, {
@@ -46,7 +46,7 @@ function makeMarker(lat, lon, title, text, img) {
     markerContent.appendChild(markerTitle)
 
     let coords = SMap.Coords.fromWGS84(lon, lat);
-    let marker = new SMap.Marker(coords, null, {url: markerContent});
+    let marker = new SMap.Marker(coords, null, { url: markerContent });
     marker.decorate(SMap.Marker.Feature.Card, lastPosMarkerCard)
     return marker
 }
@@ -63,7 +63,7 @@ function persistedToken() {
 }
 
 function initApp() {
-    const app = Elm.Main.init({
+    app = Elm.Main.init({
         node: rootNode,
         flags: {
             clientId: "***REMOVED***", //process.env.CLIENT_ID,
@@ -72,26 +72,9 @@ function initApp() {
         }
     });
 
-    wsSocket.addEventListener('open', function (event) {
-        console.log('Server WS connected!');
-    });
-    
-    wsSocket.addEventListener('message', function (event) {
-        if (event.data.startsWith("!!")) {
-            console.log('Message from server ' + event.data);
-            alert("WS: " + event.data)
-            return
-        }
-    
-        let coords = JSON.parse(event.data)
-        console.log("Received new coords: " + JSON.stringify(coords))
-    
-        app.ports.newCoordinatesReceived.send(event.data);
-    });
-
-/* Generate high entropy random bytes using the Web Crypto API and
-remember them so that they are preserved between redirections. This
-allows to protect for XSS & authorization code attacks */
+    /* Generate high entropy random bytes using the Web Crypto API and
+    remember them so that they are preserved between redirections. This
+    allows to protect for XSS & authorization code attacks */
     app.ports.genRandomBytes.subscribe(n => {
         const buffer = new Uint8Array(n);
         crypto.getRandomValues(buffer);
@@ -113,33 +96,33 @@ allows to protect for XSS & authorization code attacks */
     app.ports.addTrack.subscribe(track => {
         let responseText = track[1]
         let trackId = track[0]
-        
+
         wsSocket.send("coordinates/" + trackId)
 
         let xmlDoc = JAK.XML.createDocument(responseText)
         let pts = xmlDoc.getElementsByTagName("trkpt")
         let lastPoint = pts[pts.length - 1];
-        
-        let center = SMap.Coords.fromWGS84(lastPoint.getAttribute("lon"), lastPoint.getAttribute("lat"))
-        map.setCenter(center)
-        
-        let img = SMap.CONFIG.img + "/marker/drop-red.png"
-        let desc = "Track id: " +  trackId + "</br> time: " + lastPoint.getElementsByTagName("time")[0].innerHTML + "</br> battery: " + lastPoint.getAttribute("batt")
-        let marker = makeMarker(lastPoint.getAttribute("lat"), lastPoint.getAttribute("lon"), "", desc , img)
-        markersLayer.addMarker(marker)
-        // pass the rest to draw the line
-        let gpx = new SMap.Layer.GPX(xmlDoc, null, {maxPoints: 5000, colors: [lineColor]})
-        map.addLayer(gpx)
-        gpx.enable()
+        if (lastPoint != undefined) {
+            let center = SMap.Coords.fromWGS84(lastPoint.getAttribute("lon"), lastPoint.getAttribute("lat"))
+            map.setCenter(center)
+            let img = SMap.CONFIG.img + "/marker/drop-red.png"
+            let desc = "Track id: " + trackId + "</br> time: " + lastPoint.getElementsByTagName("time")[0].innerHTML + "</br> battery: " + lastPoint.getAttribute("batt")
+            let marker = makeMarker(lastPoint.getAttribute("lat"), lastPoint.getAttribute("lon"), "", desc, img)
+            markersLayer.addMarker(marker)
+            // pass the rest to draw the line
+            let gpx = new SMap.Layer.GPX(xmlDoc, null, { maxPoints: 5000, colors: [lineColor] })
+            map.addLayer(gpx)
+            gpx.enable()
+        }
     });
 
     app.ports.updateCoordinates.subscribe(coords => {
         console.log("Updating coordinates")
-        for(let i in coords){
+        for (let i in coords) {
             let c = coords[i]
             let img = SMap.CONFIG.img + "/marker/drop-red.png"
-            let desc = "Track id: " +  c.trackId + "</br> time: " + c.time + "</br> battery: " + c.battery
-            let marker = makeMarker(c.lat, c.lon, "", desc , img)
+            let desc = "Track id: " + c.trackId + "</br> time: " + c.time + "</br> battery: " + c.battery
+            let marker = makeMarker(c.lat, c.lon, "", desc, img)
             if (liveMarkers[c.trackId] != undefined)
                 markersLayer.removeMarker(liveMarkers[c.trackId])
             markersLayer.addMarker(marker)
@@ -176,8 +159,7 @@ customElements.define('seznam-maps', class extends HTMLElement {
         // this._screen.style.width = this.getAttribute('width');
         // this.appendChild(this._screen);
 
-        Loader.async = true;
-        Loader.load(null, null, this.createMap);
+       this.loadMap()
     }
 
     loadMap() {
@@ -195,13 +177,30 @@ customElements.define('seznam-maps', class extends HTMLElement {
         markersLayer = new SMap.Layer.Marker()
         map.addLayer(markersLayer)
         markersLayer.enable()
+
+        wsSocket.addEventListener('open', function (event) {
+            console.log('Server WS connected!');
+        });
+    
+        wsSocket.addEventListener('message', function (event) {
+            if (event.data.startsWith("!!")) {
+                console.log('Message from server ' + event.data);
+                alert("WS: " + event.data)
+                return
+            }
+    
+            let coords = JSON.parse(event.data)
+            console.log("Received new coords: " + JSON.stringify(coords))
+    
+            app.ports.newCoordinatesReceived.send(event.data);
+        });
     }
 
-    reload() {
-        Loader.load();
-        var center = SMap.Coords.fromWGS84(14.41790, 50.12655);
-        map = new SMap(JAK.gel(this._screen), center, 13);
-        map.addDefaultLayer(SMap.DEF_BASE).enable();
-        map.addDefaultControls();
-    }
+    // reload() {
+    //     Loader.load();
+    //     var center = SMap.Coords.fromWGS84(14.41790, 50.12655);
+    //     map = new SMap(JAK.gel(this._screen), center, 13);
+    //     map.addDefaultLayer(SMap.DEF_BASE).enable();
+    //     map.addDefaultControls();
+    // }
 });

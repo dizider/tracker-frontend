@@ -14,7 +14,7 @@ import RemoteData.Http as RHttp
 import Routing.Helpers as Helpers
 import SharedState as SharedState
 import Types exposing (Track)
-
+import Pages.Partials.MapView as MapView
 
 type alias Model =
     { tracks : List Track
@@ -74,10 +74,5 @@ view : SharedState.SharedState -> Model -> Html Msg
 view sharedState model =
     div []
         [ h1 [] [ text "Map" ]
-        , mapView []
+        , MapView.mapView []
         ]
-
-
-mapView : List (Attribute msg) -> Html msg
-mapView att =
-    node "seznam-maps" [ id "maps", attribute "height" "100vh", attribute "width" "100vw" ] [ div [ id "map", css [ height (vh 100), width (vw 100) ] ] [] ]
