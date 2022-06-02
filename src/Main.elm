@@ -66,11 +66,6 @@ init flags origin navigationKey =
 
         authModel =
             Auth.initModel origin
-
-        -- (authModel, authCmd) =
-        --     Auth.init initSharedState origin navigationKey
-        _ =
-            Debug.log "Init" routeModel
     in
     ( { auth = authModel
       , url = origin
@@ -85,24 +80,13 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ChangedUrl url ->
-            let
-                _ =
-                    Debug.log "Changed URL" url
-            in
             updateRouter { model | url = url } (Route.ChangedUrl url)
 
         RouterMsg routerMsg ->
-            let
-                _ =
-                    Debug.log "Updating router" routerMsg
-            in
             updateRouter model routerMsg
 
         AuthMessage amsg ->
             let
-                _ =
-                    Debug.log "Main update" amsg
-
                 updatedAuth =
                     Auth.update amsg model.auth
             in
@@ -172,26 +156,12 @@ updateRouter model routerMsg =
 
                 ( nextRouterModel, routerCmd, sharedStateUpdate ) =
                     Route.update sharedState routerMsg routerModel
-
-                -- _ =
-                --     Debug.log "Updating router / model" nextRouterModel
-                -- _ =
-                --     Debug.log "Updating router / old model" routerModel
-                -- _ =
-                --     Debug.log "Updating router / shared state" sharedStateUpdate
-                _ =
-                    Debug.log "Updating router / msg" routerMsg
             in
             ( { model | appState = Ready nextSharedState nextRouterModel }
             , Cmd.map RouterMsg routerCmd
             )
 
         _ ->
-            let
-                _ =
-                    Debug.log "We got a router message even though the app is not ready?"
-                        routerMsg
-            in
             ( model, Cmd.none )
 
 

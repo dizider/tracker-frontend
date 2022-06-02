@@ -94,7 +94,10 @@ view sharedState model =
                                 trackId =
                                     Helpers.TrackId track.id
                             in
-                            div [] [ button [ class "track-button", Events.onClick (NavigateTo trackId) ] [ div [] [text track.name], p [] [text (String.fromInt track.id)] ] ]
+                            div []
+                                [ button [ class "track-button", Events.onClick (NavigateTo trackId) ]
+                                    [ div [] [ text track.name, p [] [ text (String.fromInt track.id) ] ] ]
+                                ]
                         )
                     |> div [ class "tracks" ]
                 ]

@@ -87,9 +87,6 @@ init sharedState origin navigationKey =
 
                 flow =
                     Maybe.map Types.Authorized token
-
-                _ =
-                    Debug.log "Persisted token" token
             in
             -- TODO: Handling invalid token in memory
             ( { flow = Maybe.withDefault Types.Idle flow

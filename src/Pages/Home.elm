@@ -90,7 +90,7 @@ update sharedState msg model =
             ( model, pushUrl sharedState.navKey (routeToString route), SharedState.NoUpdate )
 
         NoOp ->
-            ( model, Cmd.none, SharedState.NoUpdate)
+            ( model, Cmd.none, SharedState.NoUpdate )
 
 
 sendCoordinatesToMap : List Coordinates -> Cmd Msg
