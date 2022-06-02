@@ -49,10 +49,6 @@ fetchTrack (Helpers.TrackId trackId) =
 
 fetchData : List Helpers.TrackId -> Cmd Msg
 fetchData tracks =
-    let
-        _ =
-            Debug.log "Fetch data of tacks" tracks
-    in
     Cmd.batch (List.map (\track -> fetchTrack track) tracks)
 
 
@@ -60,10 +56,6 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         AddTrack id result ->
-            let
-                _ =
-                    Debug.log "Upadate map" result
-            in
             case result of
                 Ok trackGpx ->
                     ( model, Ports.addTrack ( id, trackGpx ) )

@@ -87,10 +87,6 @@ update sharedState msg model =
                     )
 
                 MapPage mtrackId ->
-                    let
-                        _ =
-                            Debug.log "Upadate map" mtrackId
-                    in
                     case mtrackId of
                         Just id ->
                             ( model
@@ -114,18 +110,20 @@ update sharedState msg model =
             updateTrackers sharedState model tmsg
 
         HomeMsg hmsg ->
+            -- TODO: fix handling new coords
             updateHome sharedState model hmsg
 
         MapMsg mmsg ->
             updateMap sharedState model mmsg
 
         NewCoordinates coords ->
+            let
+                _ =
+                    Debug.log "updating home page" model
+            in
             case model.route of
                 HomePage ->
                     let
-                        _ =
-                            Debug.log "new coords in router" ""
-
                         ( updatedHomeModel, updatedHomeMsg, updatedSharedState ) =
                             Home.update sharedState (Home.NewCoordinates coords) model.homeModel
                     in
@@ -146,10 +144,6 @@ updatePage : Url -> Cmd Msg
 updatePage url =
     case parseUrl url of
         MapPage mtrackId ->
-            let
-                _ =
-                    Debug.log "Upadate map" mtrackId
-            in
             case mtrackId of
                 Just id ->
                     Cmd.map MapMsg (Map.fetchData [ id ])
@@ -243,10 +237,6 @@ view msgMapper sharedState model =
                             "Map"
 
                         Just (TrackId track) ->
-                            let
-                                _ =
-                                    Debug.log "Track id" track
-                            in
                             "Track" ++ String.fromInt track
 
         body =
@@ -348,5 +338,4 @@ mapParser =
 routeNewCoordinates : Types.Coordinates -> Msg
 routeNewCoordinates coords =
     coords
-        |> Home.NewCoordinates
-        |> HomeMsg
+        |> NewCoordinates
