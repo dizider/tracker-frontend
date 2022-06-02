@@ -21,6 +21,7 @@ import Url.Parser.Query as Query
 
 type Msg
     = ChangedUrl Url.Url
+    | NewCoordinates Types.Coordinates
     | NavigateTo Route
     | TracksMsg Tracks.Msg
     | HomeMsg Home.Msg
@@ -118,6 +119,28 @@ update sharedState msg model =
         MapMsg mmsg ->
             updateMap sharedState model mmsg
 
+        NewCoordinates coords ->
+            case model.route of
+                HomePage ->
+                    let
+                        _ =
+                            Debug.log "new coords in router" ""
+
+                        ( updatedHomeModel, updatedHomeMsg, updatedSharedState ) =
+                            Home.update sharedState (Home.NewCoordinates coords) model.homeModel
+                    in
+                    ( { model | homeModel = updatedHomeModel }
+                    , Cmd.map HomeMsg updatedHomeMsg
+                    , updatedSharedState
+                    )
+
+                -- TODO : appending new positon to track
+                MapPage _ ->
+                    ( model, Cmd.none, SharedState.NoUpdate )
+
+                _ ->
+                    ( model, Cmd.none, SharedState.NoUpdate )
+
 
 updatePage : Url -> Cmd Msg
 updatePage url =
@@ -174,8 +197,15 @@ updateTrackers sharedState model trackersMsg =
 
 
 updateHome : SharedState.SharedState -> Model -> Home.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
-updateHome sharedState model trackersMsg =
-    ( model, Cmd.none, SharedState.NoUpdate )
+updateHome sharedState model homeMsg =
+    let
+        ( newModel, homeCmd, updatedSharedState ) =
+            Home.update sharedState homeMsg model.homeModel
+    in
+    ( { model | homeModel = newModel }
+    , Cmd.map HomeMsg homeCmd
+    , updatedSharedState
+    )
 
 
 updateMap : SharedState.SharedState -> Model -> Map.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
@@ -220,30 +250,35 @@ view msgMapper sharedState model =
                             "Track" ++ String.fromInt track
 
         body =
-            div []
-                [ header []
-                    [ h1 [] [] --text "site-title" ]
-                    ]
-                , nav []
-                    [ button
-                        [ onClick (NavigateTo HomePage)
+            case model.route of
+                HomePage ->
+                    pageView sharedState model
+
+                _ ->
+                    div []
+                        [ header []
+                            [ h1 [] [] --text "site-title" ]
+                            ]
+                        , nav []
+                            [ button
+                                [ onClick (NavigateTo HomePage)
+                                ]
+                                [ text "Home" ]
+                            , button
+                                [ onClick (NavigateTo TracksList)
+                                ]
+                                [ text "Tracks list" ]
+                            ]
+                        , pageView sharedState model
+                        , footer []
+                            [ a
+                                [ Attributes.href "https://github.com/litvinov-tabor2022"
+                                ]
+                                [ text "Github" ]
+                            ]
                         ]
-                        [ text "page-title-home" ]
-                    , button
-                        [ onClick (NavigateTo TracksList)
-                        ]
-                        [ text "page-title-settings" ]
-                    ]
-                , pageView sharedState model
-                , footer []
-                    [ a
-                        [ Attributes.href "https://github.com/litvinov-tabor2022"
-                        ]
-                        [ text "Github" ]
-                    ]
-                ]
     in
-    { title = title ++ " - Elm Shared State Demo"
+    { title = title ++ " - Tracker"
     , body =
         [ body
             |> Html.Styled.toUnstyled
@@ -308,3 +343,10 @@ matchRoute =
 mapParser : Query.Parser (Maybe Int)
 mapParser =
     Query.int "track"
+
+
+routeNewCoordinates : Types.Coordinates -> Msg
+routeNewCoordinates coords =
+    coords
+        |> Home.NewCoordinates
+        |> HomeMsg

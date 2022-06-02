@@ -1,10 +1,11 @@
 module Pages.Map exposing (Model, Msg, fetchData, init, update, view)
 
+import Css exposing (..)
 import Decoders as Decoders
 import Dict exposing (Dict)
 import Html
 import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes exposing (attribute, id)
+import Html.Styled.Attributes exposing (attribute, css, id)
 import Html.Styled.Events exposing (..)
 import Http as Http
 import Ports as Ports
@@ -87,4 +88,4 @@ view sharedState model =
 
 mapView : List (Attribute msg) -> Html msg
 mapView att =
-    node "seznam-maps" [ id "maps", attribute "height" "100vh", attribute "width" "100vw" ] []
+    node "seznam-maps" [ id "maps", attribute "height" "100vh", attribute "width" "100vw" ] [ div [ id "map", css [ height (vh 100), width (vw 100) ] ] [] ]
