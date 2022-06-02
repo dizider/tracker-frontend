@@ -4,13 +4,15 @@ import Auth as Auth exposing (Msg(..), viewErrored)
 import Browser exposing (Document, application)
 import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
+import Decoders as Decoders
 import Delay exposing (TimeUnit(..))
 import Flags as Flags
 import Html as Html exposing (..)
 import Html.Attributes as Attributes exposing (..)
 import Html.Events as Events exposing (..)
-import Ports exposing (persistedToken, randomBytes)
-import Routing.Route as Route
+import Json.Decode as Decode exposing (..)
+import Ports exposing (..)
+import Routing.Route as Route exposing (Msg(..))
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Protocol(..), Url)
@@ -38,6 +40,7 @@ type Msg
     | AuthMessage Auth.Msg
     | NewRandomBytes (List Int)
     | NewPersistedToken String
+    | NewCoordinates String
 
 
 subscriptions : Model -> Sub Msg
@@ -45,6 +48,7 @@ subscriptions _ =
     Sub.batch
         [ randomBytes NewRandomBytes
         , persistedToken NewPersistedToken
+        , newCoordinatesReceived NewCoordinates
         ]
 
 
@@ -117,7 +121,12 @@ update msg model =
 
         NewPersistedToken token ->
             ( model
-            , Cmd.map (always liftToMain (GotPersistedToken token)) Cmd.none
+            , Cmd.map
+                (token
+                    |> GotPersistedToken
+                    |> always liftToMain
+                )
+                Cmd.none
             )
 
         ClickedLink urlRequest ->
@@ -131,6 +140,23 @@ update msg model =
                 Browser.External href ->
                     Navigation.load href
             )
+
+        NewCoordinates scoords ->
+            let
+                rcoords =
+                    Decode.decodeString Decoders.decodeCoordinates scoords
+            in
+            case rcoords of
+                Ok coord ->
+                    coord
+                        |> Route.routeNewCoordinates
+                        |> updateRouter model
+
+                -- ignore invalid message
+                Err _ ->
+                    ( model
+                    , Cmd.none
+                    )
 
         _ ->
             noOp model
