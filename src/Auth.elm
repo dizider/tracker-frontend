@@ -1,23 +1,23 @@
-module Auth exposing (Model, Msg(..), form, init, initModel, update, viewErrored, viewIdle)
+module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, update, viewErrored, viewIdle, viewAuthorized)
 
-import Browser.Navigation as Navigation exposing (Key)
-import Config as Config exposing (translates)
+import Browser.Navigation as Navigation exposing (Key, pushUrl)
+import Config as Config
 import Delay exposing (TimeUnit(..), after)
-import Helpers exposing (convertBytes, defaultHttpsUrl)
-import Html
+import Helpers exposing (defaultHttpsUrl)
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (class, href, id)
-import Html.Styled.Events as Events exposing (onClick)
+import Html.Styled.Attributes exposing (class)
+import Html.Styled.Events as Events
 import Http
 import Json.Decode as Json
 import OAuth
 import OAuth.Implicit as OAuth
-import Ports exposing (genRandomBytes, getPersistedToken, persistToken)
+import Ports exposing (genRandomBytes, persistToken)
+import RemoteData.Http exposing (Config)
+import Routing.Helpers as Helpers exposing (parseUrl)
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Protocol(..), Url)
-import Url.Builder
-
+-- import Routing.Route as Route
 
 type alias Configuration =
     { authorizationEndpoint : Url
@@ -46,15 +46,15 @@ type alias Model =
     }
 
 
-initModel : Url -> Model
-initModel origin =
+initModel : SharedState.SharedState -> Url -> Maybe String -> Model
+initModel sharedState origin stoken =
     let
         redirectUri =
-            { origin | query = Nothing, fragment = Nothing }
+            { origin | query = Nothing, fragment = Nothing, path = "/auth" }
     in
     { redirectUri = redirectUri
     , flow = Types.Idle
-    , token = Nothing
+    , token = Maybe.andThen OAuth.tokenFromString stoken
     }
 
 
@@ -74,7 +74,7 @@ init : SharedState.SharedState -> Url -> Key -> ( Model, Cmd Msg )
 init sharedState origin navigationKey =
     let
         redirectUri =
-            { origin | query = Nothing, fragment = Nothing }
+            { origin | query = Nothing, fragment = Nothing, path = "/auth" }
 
         clearUrl =
             Navigation.replaceUrl navigationKey (Url.toString redirectUri)
@@ -216,13 +216,20 @@ gotRandomBytes model bytes =
 
 userInfoRequested : Model -> OAuth.Token -> ( Model, Cmd Msg )
 userInfoRequested model token =
-    ( { model | flow = Types.Authorized token }
-    , getUserInfo configuration token
-    )
+    case model.flow of
+        Types.Done _ ->
+            ( model
+            , Cmd.none
+            )
+
+        _ ->
+            ( { model | flow = Types.Authorized token }
+            , getUserInfo configuration token
+            )
 
 
-gotUserInfo : Model -> Result Http.Error Types.UserInfo -> ( Model, Cmd Msg )
-gotUserInfo model userInfoResponse =
+gotUserInfo : SharedState.SharedState -> Model -> Result Http.Error Types.UserInfo -> ( Model, Cmd Msg )
+gotUserInfo sharedState model userInfoResponse =
     case userInfoResponse of
         Err _ ->
             ( { model | flow = Types.Errored Types.ErrHTTPGetUserInfo }
@@ -231,7 +238,7 @@ gotUserInfo model userInfoResponse =
 
         Ok userInfo ->
             ( { model | flow = Types.Done userInfo }
-            , Cmd.none
+            , Navigation.pushUrl sharedState.navKey (Url.toString sharedState.url)
             )
 
 
@@ -267,6 +274,10 @@ viewIdle : Html Msg
 viewIdle =
     form
 
+viewAuthorized : Html Msg
+viewAuthorized =
+    span [] [ text "Authorizing user..." ]
+    
 
 viewErrored : Types.Error -> Html Msg
 viewErrored error =
@@ -292,8 +303,8 @@ noOp model =
     ( model, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg )
+update sharedState msg model =
     case ( model.flow, msg ) of
         ( Types.Idle, SignInRequested ) ->
             signInRequested model
@@ -305,7 +316,7 @@ update msg model =
             userInfoRequested model token
 
         ( Types.Authorized _, GotUserInfo userInfoResponse ) ->
-            gotUserInfo model userInfoResponse
+            gotUserInfo sharedState model userInfoResponse
 
         ( Types.Done _, SignOutRequested ) ->
             signOutRequested model
@@ -314,14 +325,14 @@ update msg model =
             noOp model
 
 
-isAuthorized : Model -> Bool
-isAuthorized model =
+authorizedMsg : msg -> Model -> Result String msg
+authorizedMsg msg model =
     case model.flow of
-        Types.Authorized token ->
-            True
+        Types.Done _ ->
+            Ok msg
 
         _ ->
-            False
+            Err "Not authorized"
 
 
 form : Html Msg

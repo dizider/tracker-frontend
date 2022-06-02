@@ -1,4 +1,4 @@
-module Routing.Route exposing (..)
+module Routing.Route exposing (Model, Msg(..), init, routeNewCoordinates, update, view)
 
 import Auth
 import Browser
@@ -8,15 +8,15 @@ import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes as Attributes exposing (href)
 import Html.Styled.Events exposing (..)
+import OAuth exposing (ErrorCode(..))
 import Pages.Home as Home
 import Pages.Map as Map
 import Pages.Tracks as Tracks
-import Routing.Helpers exposing (..)
+import Routing.Helpers as Helpers exposing (..)
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Url)
 import Url.Parser as Parser exposing (..)
-import Url.Parser.Query as Query
 
 
 type Msg
@@ -27,10 +27,14 @@ type Msg
     | HomeMsg Home.Msg
     | AuthMsg Auth.Msg
     | MapMsg Map.Msg
+    | AuthorizedMsg (Cmd Msg)
+    | AccessDenied
+    | NoOp
 
 
 type alias Model =
     { route : Route
+    , url : Url
     , tracksListModel : Tracks.Model
     , homeModel : Home.Model
     , authModel : Auth.Model
@@ -53,6 +57,7 @@ init sharedState url =
     ( { tracksListModel = tracksModel
       , homeModel = Home.initModel
       , route = parseUrl url
+      , url = url
       , authModel = authModel
       , mapModel = mapModel
       }
@@ -66,14 +71,38 @@ init sharedState url =
     )
 
 
-update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
-update sharedState msg model =
+authUpdateProxy : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+authUpdateProxy sharedState msg model =
     case msg of
+        AccessDenied ->
+            ( { model | route = AuthPage }
+            , Cmd.none
+            , SharedState.UpdateToken Nothing
+            )
+
+        AuthorizedMsg authMsg ->
+            let
+                resultMsg =
+                    Auth.authorizedMsg authMsg model.authModel
+            in
+            case resultMsg of
+                Ok authorizedMsg ->
+                    ( model
+                    , authorizedMsg
+                    , SharedState.NoUpdate
+                    )
+
+                Err _ ->
+                    ( { model | route = AuthPage }
+                    , Cmd.map (\_ -> AccessDenied) Cmd.none
+                    , SharedState.NoUpdate
+                    )
+
         AuthMsg amsg ->
             updateAuth sharedState model amsg
 
         ChangedUrl location ->
-            ( { model | route = parseUrl location }
+            ( { model | route = parseUrl location, url = location }
             , updatePage location
             , SharedState.NoUpdate
             )
@@ -117,10 +146,6 @@ update sharedState msg model =
             updateMap sharedState model mmsg
 
         NewCoordinates coords ->
-            let
-                _ =
-                    Debug.log "updating home page" model
-            in
             case model.route of
                 HomePage ->
                     let
@@ -139,6 +164,50 @@ update sharedState msg model =
                 _ ->
                     ( model, Cmd.none, SharedState.NoUpdate )
 
+        NoOp ->
+            ( model
+            , Cmd.none
+            , SharedState.NoUpdate
+            )
+
+
+update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+update sharedState msg model =
+    let
+        resultMsg =
+            Auth.authorizedMsg msg model.authModel
+
+        accessDeniedModel =
+            { model | route = AuthPage }
+    in
+    case ( resultMsg, model.route ) of
+        ( _, AuthPage ) ->
+            case msg of
+                (AuthMsg _) as amsg ->
+                    authUpdateProxy sharedState msg model
+
+                _ ->
+                    case resultMsg of
+                        Ok authMsg ->
+                            let
+                                updateModel =
+                                    { model | route = parseUrl model.url }
+                            in
+                            authUpdateProxy sharedState msg updateModel
+
+                        Err _ ->
+                            authUpdateProxy sharedState AccessDenied model
+
+        ( Ok authMsg, _ ) ->
+            let
+                updateModel =
+                    { model | route = parseUrl model.url }
+            in
+            authUpdateProxy sharedState msg updateModel
+
+        ( Err _, _ ) ->
+            authUpdateProxy sharedState AccessDenied model
+
 
 updatePage : Url -> Cmd Msg
 updatePage url =
@@ -155,7 +224,7 @@ updatePage url =
             Cmd.none
 
         TracksList ->
-            Cmd.none
+            Cmd.map TracksMsg Tracks.fetchData
 
         HomePage ->
             Cmd.none
@@ -165,10 +234,10 @@ updatePage url =
 
 
 updateAuth : SharedState.SharedState -> Model -> Auth.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
-updateAuth _ model authMsg =
+updateAuth sharedState model authMsg =
     let
         ( newModel, authCmd ) =
-            Auth.update authMsg model.authModel
+            Auth.update sharedState authMsg model.authModel
     in
     ( { model | authModel = newModel }
     , Cmd.map AuthMsg authCmd
@@ -240,8 +309,14 @@ view msgMapper sharedState model =
                             "Track" ++ String.fromInt track
 
         body =
-            case model.route of
-                HomePage ->
+            case ( model.route, model.authModel.flow ) of
+                ( HomePage, _ ) ->
+                    pageView sharedState model
+
+                ( AuthPage, Types.Authorized _ ) ->
+                    pageView sharedState model
+
+                ( AuthPage, Types.Idle ) ->
                     pageView sharedState model
 
                 _ ->
@@ -292,10 +367,22 @@ pageView sharedState model =
             AuthPage ->
                 case model.authModel.flow of
                     Types.Done userInfo ->
-                        Html.Styled.text userInfo.email
+                        div []
+                            [ text "User details: "
+                            , ul []
+                                [ li [] [ text "email: ", text userInfo.email ]
+                                , li [] [ text "name: ", text userInfo.name ]
+                                ]
+                            ]
 
-                    _ ->
+                    Types.Idle ->
                         Html.Styled.map AuthMsg Auth.viewIdle
+
+                    Types.Authorized _ ->
+                        Html.Styled.map AuthMsg Auth.viewAuthorized
+
+                    Types.Errored err ->
+                        Html.Styled.map AuthMsg (Auth.viewErrored err)
 
             MapPage mtrack ->
                 Map.view sharedState model.mapModel
@@ -304,35 +391,6 @@ pageView sharedState model =
             NotFound ->
                 h1 [] [ text "404 :(" ]
         ]
-
-
-parseUrl : Url -> Route
-parseUrl url =
-    case Parser.parse matchRoute url of
-        Just route ->
-            route
-
-        Nothing ->
-            NotFound
-
-
-matchRoute : Parser.Parser (Route -> a) a
-matchRoute =
-    Parser.oneOf
-        [ --Parser.map MapPage <| Parser.s "map" </> Parser.map Tracker Parser.int
-          Parser.map HomePage (Parser.s "home")
-        , Parser.map HomePage Parser.top
-        , Parser.map TracksList (Parser.s "trackers")
-        , Parser.map AuthPage (Parser.s "auth")
-
-        -- , Parser.map MapPage (Parser.s "map")
-        , Parser.map MapPage <| Parser.s "map" <?> Query.map (Maybe.map TrackId) mapParser
-        ]
-
-
-mapParser : Query.Parser (Maybe Int)
-mapParser =
-    Query.int "track"
 
 
 routeNewCoordinates : Types.Coordinates -> Msg

@@ -5,15 +5,16 @@ import Css exposing (..)
 import Decoders as Decoders
 import Dict as Dict
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (attribute, css, href, id)
+import Html.Styled.Attributes exposing (id)
 import Html.Styled.Events exposing (..)
 import Json.Decode exposing (Decoder)
+import Pages.Partials.MapView as MapView
 import Ports as Ports
-import RemoteData exposing (RemoteData(..), WebData, map)
+import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http as Http
-import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
+import Routing.Helpers as Helpers exposing (Route(..), routeToString)
 import SharedState as SharedState
-import Types as Types exposing (Coordinates, Track)
+import Types as Types exposing (Coordinates)
 
 
 type alias Model =
@@ -49,14 +50,9 @@ fetchInitalCoordinates =
 view : SharedState.SharedState -> Model -> Html Msg
 view sharedState model =
     div []
-        [ mapView []
+        [ MapView.mapView []
         , button [ id "back", NavigateTo Helpers.TracksList |> onClick ] [ text "List of tracks" ]
         ]
-
-
-mapView : List (Attribute msg) -> Html msg
-mapView att =
-    node "seznam-maps" [ id "maps", attribute "height" "100vh", attribute "width" "100vw" ] [ div [ id "map", css [ height (vh 100), width (vw 100) ] ] [] ]
 
 
 update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )

@@ -1,4 +1,5 @@
 port module Ports exposing (..)
+
 import Types exposing (Coordinates)
 
 
@@ -16,12 +17,17 @@ port getPersistedToken : Bool -> Cmd msg
 
 port persistedToken : (String -> msg) -> Sub msg
 
+
 port removeToken : Bool -> Cmd msg
 
-port addTrack : (Int, String) -> Cmd msg
+
+port addTrack : ( Int, String ) -> Cmd msg
+
 
 port removeTrack : Int -> Cmd msg
 
+
 port newCoordinatesReceived : (String -> msg) -> Sub msg
+
 
 port updateCoordinates : List Coordinates -> Cmd msg

@@ -1,12 +1,13 @@
 module SharedState exposing (..)
 
 import Browser.Navigation
-
+import Url exposing (Url)
 
 type alias SharedState =
     { navKey : Browser.Navigation.Key
     , token : Maybe String
     , state : Maybe String
+    , url : Url
     }
 
 

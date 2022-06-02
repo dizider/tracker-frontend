@@ -59,91 +59,106 @@ init flags origin navigationKey =
             { navKey = navigationKey
             , token = flags.token
             , state = flags.state
+            , url = origin
             }
 
         ( routeModel, routeMsg ) =
             Route.init initSharedState origin
 
+        -- ( authModel, authMsg ) =
+        --     Auth.init initSharedState origin navigationKey
         authModel =
-            Auth.initModel origin
+            Auth.initModel initSharedState origin flags.token
     in
     ( { auth = authModel
       , url = origin
       , appState = Ready initSharedState routeModel
       , key = navigationKey
       }
-    , Cmd.map RouterMsg routeMsg
+    , Cmd.batch
+        [ Cmd.map RouterMsg routeMsg
+        , Cmd.map (always ChangedUrl origin) Cmd.none
+
+        -- , Cmd.map (always Auth.ini)
+        ]
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        ChangedUrl url ->
-            updateRouter { model | url = url } (Route.ChangedUrl url)
+    case model.appState of
+        Ready sharedState r ->
+            case msg of
+                ChangedUrl url ->
+                    updateRouter { model | url = url } (Route.ChangedUrl url)
 
-        RouterMsg routerMsg ->
-            updateRouter model routerMsg
+                RouterMsg routerMsg ->
+                    updateRouter model routerMsg
 
-        AuthMessage amsg ->
-            let
-                updatedAuth =
-                    Auth.update amsg model.auth
-            in
-            ( { model | auth = Tuple.first updatedAuth }
-            , Cmd.map liftToMain (Tuple.second updatedAuth)
-            )
-
-        NewRandomBytes bytes ->
-            let
-                updatedAuth =
-                    Auth.update (Auth.GotRandomBytes bytes) model.auth
-            in
-            ( { model | auth = Tuple.first updatedAuth }
-            , Cmd.map liftToMain (Tuple.second updatedAuth)
-            )
-
-        NewPersistedToken token ->
-            ( model
-            , Cmd.map
-                (token
-                    |> GotPersistedToken
-                    |> always liftToMain
-                )
-                Cmd.none
-            )
-
-        ClickedLink urlRequest ->
-            ( model
-            , case urlRequest of
-                Browser.Internal url ->
-                    url
-                        |> Url.toString
-                        |> Navigation.pushUrl model.key
-
-                Browser.External href ->
-                    Navigation.load href
-            )
-
-        NewCoordinates scoords ->
-            let
-                rcoords =
-                    Decode.decodeString Decoders.decodeCoordinates scoords
-            in
-            case rcoords of
-                Ok coord ->
-                    coord
-                        |> Route.routeNewCoordinates
-                        |> updateRouter model
-
-                -- ignore invalid message
-                Err _ ->
-                    ( model
-                    , Cmd.none
+                AuthMessage amsg ->
+                    let
+                        updatedAuth =
+                            Auth.update sharedState amsg model.auth
+                    in
+                    ( { model | auth = Tuple.first updatedAuth }
+                    , Cmd.map liftToMain (Tuple.second updatedAuth)
                     )
 
+                NewRandomBytes bytes ->
+                    let
+                        updatedAuth =
+                            Auth.update sharedState (Auth.GotRandomBytes bytes) model.auth
+                    in
+                    ( { model | auth = Tuple.first updatedAuth }
+                    , Cmd.map liftToMain (Tuple.second updatedAuth)
+                    )
+
+                NewPersistedToken token ->
+                    ( model
+                    , Cmd.map
+                        (token
+                            |> GotPersistedToken
+                            |> always liftToMain
+                        )
+                        Cmd.none
+                    )
+
+                ClickedLink urlRequest ->
+                    ( model
+                    , case urlRequest of
+                        Browser.Internal url ->
+                            url
+                                |> Url.toString
+                                |> Navigation.pushUrl model.key
+
+                        Browser.External href ->
+                            Navigation.load href
+                    )
+
+                NewCoordinates scoords ->
+                    let
+                        rcoords =
+                            Decode.decodeString Decoders.decodeCoordinates scoords
+                    in
+                    case rcoords of
+                        Ok coord ->
+                            coord
+                                |> Route.routeNewCoordinates
+                                |> updateRouter model
+
+                        -- ignore invalid message
+                        Err _ ->
+                            ( model
+                            , Cmd.none
+                            )
+
+                _ ->
+                    noOp model
+
         _ ->
-            noOp model
+            ( model
+            , Cmd.none
+            )
 
 
 updateRouter : Model -> Route.Msg -> ( Model, Cmd Msg )
@@ -184,16 +199,18 @@ view ({ title } as config) model =
         Ready sharedState routerModel ->
             Route.view RouterMsg sharedState routerModel
 
+        NotReady ->
+            { title = title
+            , body = [ Html.div [] [ Html.text "initializing" ] ]
+            }
+
         _ ->
             { title = title
             , body = [ Html.div [] [ Html.text "nothing here" ] ]
             }
 
 
-viewAuthorized : List (Html.Html Msg)
-viewAuthorized =
-    [ Html.span [] [ Html.text "Getting user info..." ]
-    ]
+
 
 
 viewUserInfo : Types.ViewConfiguration -> Types.UserInfo -> List (Html.Html Msg)
