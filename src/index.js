@@ -7,7 +7,14 @@ var script = document.createElement('script');
 script.setAttribute('type', 'text/javascript');
 script.setAttribute('src', 'https://api.mapy.cz/loader.js');
 document.head.appendChild(script);
+
+var meta = document.createElement('meta');
+meta.setAttribute('name', 'viewport')
+meta.setAttribute('content', 'width=device-width,user-scalable=0,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover')
+document.head.appendChild(meta);
+
 script.onload = initApp;
+
 
 const rootNode = document.getElementById('root')
 
@@ -72,9 +79,6 @@ function initApp() {
         }
     });
 
-    /* Generate high entropy random bytes using the Web Crypto API and
-    remember them so that they are preserved between redirections. This
-    allows to protect for XSS & authorization code attacks */
     app.ports.genRandomBytes.subscribe(n => {
         const buffer = new Uint8Array(n);
         crypto.getRandomValues(buffer);
@@ -92,6 +96,10 @@ function initApp() {
         console.log("Removing token")
         localStorage.removeItem("token")
     });
+
+    // app.ports.loadMap.subscribe(_ => {
+
+    // });
 
     app.ports.addTrack.subscribe(track => {
         let responseText = track[1]
@@ -159,10 +167,11 @@ customElements.define('seznam-maps', class extends HTMLElement {
         // this._screen.style.width = this.getAttribute('width');
         // this.appendChild(this._screen);
 
-       this.loadMap()
+        this.loadMap()
     }
 
     loadMap() {
+        Loader.lang = "en";
         Loader.async = true;
         Loader.load(null, null, this.createMap);
     }
@@ -171,8 +180,16 @@ customElements.define('seznam-maps', class extends HTMLElement {
         this._screen = document.getElementById("map");
         var center = SMap.Coords.fromWGS84(14.41790, 50.12655);
         map = new SMap(JAK.gel(this._screen), center, 13);
-        map.addDefaultLayer(SMap.DEF_BASE).enable();
+        map.addDefaultLayer(SMap.DEF_TURIST).enable()
+        map.addDefaultLayer(SMap.DEF_OPHOTO)
+        map.addDefaultLayer(SMap.DEF_BASE)
         map.addDefaultControls();
+
+        let layerSwitch = new SMap.Control.Layer({width: 65, items: 3, page: 3})
+        layerSwitch.addDefaultLayer(SMap.DEF_BASE)
+        layerSwitch.addDefaultLayer(SMap.DEF_OPHOTO)
+        layerSwitch.addDefaultLayer(SMap.DEF_TURIST)
+        map.addControl(layerSwitch, {left: "8px", top: "53px"})
 
         markersLayer = new SMap.Layer.Marker()
         map.addLayer(markersLayer)
@@ -181,17 +198,17 @@ customElements.define('seznam-maps', class extends HTMLElement {
         wsSocket.addEventListener('open', function (event) {
             console.log('Server WS connected!');
         });
-    
+
         wsSocket.addEventListener('message', function (event) {
             if (event.data.startsWith("!!")) {
                 console.log('Message from server ' + event.data);
                 alert("WS: " + event.data)
                 return
             }
-    
+
             let coords = JSON.parse(event.data)
             console.log("Received new coords: " + JSON.stringify(coords))
-    
+
             app.ports.newCoordinatesReceived.send(event.data);
         });
     }

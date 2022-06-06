@@ -55,8 +55,9 @@ view sharedState model =
         ]
 
 
-update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
-update sharedState msg model =
+update : (Msg -> msg) -> SharedState.SharedState -> Msg -> Model -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
+update wrapper sharedState msg model =
+    (\(m, ms, s) -> (m, Cmd.map wrapper ms, s)) <| 
     case msg of
         NewCoordinates coords ->
             let
@@ -66,7 +67,7 @@ update sharedState msg model =
             case updatedCoordinates of
                 Success coordinates ->
                     ( { model | coordinates = updatedCoordinates }
-                    , Dict.values coordinates |> sendCoordinatesToMap
+                    , Dict.values coordinates |> sendCoordinatesToMap 
                     , SharedState.NoUpdate
                     )
 

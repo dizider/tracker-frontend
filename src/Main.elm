@@ -1,15 +1,14 @@
-module Main exposing (Msg(..), liftToMain, main)
+module Main exposing (Msg(..), main)
 
-import Auth as Auth exposing (Msg(..), viewErrored)
+import Auth as Auth exposing (Msg(..))
 import Browser exposing (Document, application)
-import Browser.Navigation as Navigation exposing (Key)
-import Bytes exposing (Bytes)
+import Browser.Navigation as Navigation
 import Decoders as Decoders
 import Delay exposing (TimeUnit(..))
 import Flags as Flags
 import Html as Html exposing (..)
-import Html.Attributes as Attributes exposing (..)
-import Html.Events as Events exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 import Json.Decode as Decode exposing (..)
 import Ports exposing (..)
 import Routing.Route as Route exposing (Msg(..))
@@ -19,8 +18,7 @@ import Url exposing (Protocol(..), Url)
 
 
 type alias Model =
-    { auth : Auth.Model
-    , url : Url.Url
+    { url : Url.Url
     , appState : AppState
     , key : Navigation.Key
     }
@@ -39,7 +37,6 @@ type Msg
     | RouterMsg Route.Msg
     | AuthMessage Auth.Msg
     | NewRandomBytes (List Int)
-    | NewPersistedToken String
     | NewCoordinates String
 
 
@@ -47,7 +44,6 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ randomBytes NewRandomBytes
-        , persistedToken NewPersistedToken
         , newCoordinatesReceived NewCoordinates
         ]
 
@@ -64,22 +60,13 @@ init flags origin navigationKey =
 
         ( routeModel, routeMsg ) =
             Route.init initSharedState origin
-
-        -- ( authModel, authMsg ) =
-        --     Auth.init initSharedState origin navigationKey
-        authModel =
-            Auth.initModel initSharedState origin flags.token
     in
-    ( { auth = authModel
-      , url = origin
+    ( { url = origin
       , appState = Ready initSharedState routeModel
       , key = navigationKey
       }
     , Cmd.batch
         [ Cmd.map RouterMsg routeMsg
-        , Cmd.map (always ChangedUrl origin) Cmd.none
-
-        -- , Cmd.map (always Auth.ini)
         ]
     )
 
@@ -87,41 +74,26 @@ init flags origin navigationKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case model.appState of
-        Ready sharedState r ->
+        Ready _ _ ->
+            let
+                wrapped =
+                    messageWrapper msg
+            in
             case msg of
                 ChangedUrl url ->
-                    updateRouter { model | url = url } (Route.ChangedUrl url)
+                    updateRouter { model | url = url } wrapped
 
-                RouterMsg routerMsg ->
-                    updateRouter model routerMsg
+                RouterMsg _ ->
+                    updateRouter model wrapped
 
-                AuthMessage amsg ->
-                    let
-                        updatedAuth =
-                            Auth.update sharedState amsg model.auth
-                    in
-                    ( { model | auth = Tuple.first updatedAuth }
-                    , Cmd.map liftToMain (Tuple.second updatedAuth)
-                    )
+                AuthMessage _ ->
+                    updateRouter model wrapped
 
-                NewRandomBytes bytes ->
-                    let
-                        updatedAuth =
-                            Auth.update sharedState (Auth.GotRandomBytes bytes) model.auth
-                    in
-                    ( { model | auth = Tuple.first updatedAuth }
-                    , Cmd.map liftToMain (Tuple.second updatedAuth)
-                    )
+                NewRandomBytes _ ->
+                    updateRouter model wrapped
 
-                NewPersistedToken token ->
-                    ( model
-                    , Cmd.map
-                        (token
-                            |> GotPersistedToken
-                            |> always liftToMain
-                        )
-                        Cmd.none
-                    )
+                NewCoordinates _ ->
+                    updateRouter model wrapped
 
                 ClickedLink urlRequest ->
                     ( model
@@ -135,30 +107,54 @@ update msg model =
                             Navigation.load href
                     )
 
-                NewCoordinates scoords ->
-                    let
-                        rcoords =
-                            Decode.decodeString Decoders.decodeCoordinates scoords
-                    in
-                    case rcoords of
-                        Ok coord ->
-                            coord
-                                |> Route.routeNewCoordinates
-                                |> updateRouter model
-
-                        -- ignore invalid message
-                        Err _ ->
-                            ( model
-                            , Cmd.none
-                            )
-
-                _ ->
+                NoOp ->
                     noOp model
 
-        _ ->
+        NotReady ->
             ( model
             , Cmd.none
             )
+
+        FailedToInitialize ->
+            ( model
+            , Cmd.none
+            )
+
+
+messageWrapper : Msg -> Route.Msg
+messageWrapper msg =
+    case msg of
+        ChangedUrl url ->
+            Route.ChangedUrl url
+
+        RouterMsg routerMsg ->
+            routerMsg
+
+        AuthMessage amsg ->
+            Route.AuthMsg amsg
+
+        NewRandomBytes bytes ->
+            Route.AuthMsg (Auth.GotRandomBytes bytes)
+
+        NewCoordinates scoords ->
+            let
+                rcoords =
+                    Decode.decodeString Decoders.decodeCoordinates scoords
+            in
+            case rcoords of
+                Ok coord ->
+                    coord
+                        |> Route.routeNewCoordinates
+
+                -- ignore invalid message
+                Err _ ->
+                    Route.NoOp
+
+        ClickedLink _ ->
+            Route.NoOp
+
+        NoOp ->
+            Route.NoOp
 
 
 updateRouter : Model -> Route.Msg -> ( Model, Cmd Msg )
@@ -186,16 +182,8 @@ noOp model =
 
 
 view : Types.ViewConfiguration -> Model -> Document Msg
-view ({ title } as config) model =
-    let
-        bootstrap =
-            []
-    in
+view { title } model =
     case model.appState of
-        -- Types.Done user ->
-        --     { title = title
-        --     , body = bootstrap ++ [ mapView [] ]
-        --     }
         Ready sharedState routerModel ->
             Route.view RouterMsg sharedState routerModel
 
@@ -204,80 +192,10 @@ view ({ title } as config) model =
             , body = [ Html.div [] [ Html.text "initializing" ] ]
             }
 
-        _ ->
+        FailedToInitialize ->
             { title = title
-            , body = [ Html.div [] [ Html.text "nothing here" ] ]
+            , body = [ Html.div [] [ Html.text "Initialization failed" ] ]
             }
-
-
-
-
-
-viewUserInfo : Types.ViewConfiguration -> Types.UserInfo -> List (Html.Html Msg)
-viewUserInfo _ { name, picture, email } =
-    [ Html.div [ class "flex", class "flex-column" ]
-        [ Html.img [ class "avatar", Attributes.src picture ] []
-        , Html.p [] [ Html.text name ]
-        , Html.p [] [ Html.text email ]
-        , Html.div []
-            [ Html.button
-                [ Events.onClick (liftToMain Auth.SignOutRequested) ]
-                [ Html.text "Sign out" ]
-            ]
-        ]
-    ]
-
-
-viewAuthorizationStep : Bool -> Html.Html Msg
-viewAuthorizationStep isActive =
-    viewStep isActive ( "Authorization", style "left" "-110%" )
-
-
-viewGetUserInfoStep : Bool -> Html.Html Msg
-viewGetUserInfoStep isActive =
-    viewStep isActive ( "Get User Info", style "left" "-135%" )
-
-
-viewErroredStep : Html.Html Msg
-viewErroredStep =
-    Html.div
-        [ class "step", class "step-errored" ]
-        [ Html.span [ style "left" "-50%" ] [ Html.h1 [] [ Html.text "Authorization error" ] ] ]
-
-
-viewStep : Bool -> ( String, Html.Attribute Msg ) -> Html.Html Msg
-viewStep isActive ( step, position ) =
-    let
-        stepClass =
-            class "step"
-                :: (if isActive then
-                        [ class "step-active" ]
-
-                    else
-                        []
-                   )
-    in
-    Html.div stepClass [ Html.span [ position ] [ Html.text step ] ]
-
-
-viewStepSeparator : Bool -> Html.Html Msg
-viewStepSeparator isActive =
-    let
-        stepClass =
-            class "step-separator"
-                :: (if isActive then
-                        [ class "step-active" ]
-
-                    else
-                        []
-                   )
-    in
-    Html.span stepClass []
-
-
-liftToMain : Auth.Msg -> Msg
-liftToMain msg =
-    AuthMessage msg
 
 
 main : Program Flags.RawFlags Model Msg

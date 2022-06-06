@@ -11,6 +11,7 @@ type TrackId
 
 type Route
     = NotFound
+    | AccessDeniedPage
     | TracksList
     | HomePage
     | AuthPage
@@ -44,6 +45,33 @@ mapParser =
     Query.int "track"
 
 
+routeToTitle : Route -> String
+routeToTitle route =
+    case route of
+        HomePage ->
+            "Home"
+
+        TracksList ->
+            "Tracker List"
+
+        NotFound ->
+            "NotFound"
+
+        AuthPage ->
+            "Autorization"
+
+        AccessDeniedPage ->
+            "Access denied"
+
+        MapPage mtrack ->
+            case mtrack of
+                Nothing ->
+                    "Map"
+
+                Just (TrackId track) ->
+                    "Track " ++ String.fromInt track
+
+
 routeToString : Route -> String
 routeToString route =
     case route of
@@ -58,6 +86,9 @@ routeToString route =
 
         AuthPage ->
             "/auth"
+
+        AccessDeniedPage ->
+            "/access-denied"
 
         MapPage mtrack ->
             case mtrack of
