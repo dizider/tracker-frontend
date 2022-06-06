@@ -1,4 +1,4 @@
-module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, update, viewErrored, viewIdle, viewAuthorized)
+module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, update, viewAuthorized, viewErrored, viewIdle)
 
 import Browser.Navigation as Navigation exposing (Key, pushUrl)
 import Config as Config
@@ -17,7 +17,7 @@ import Routing.Helpers as Helpers exposing (parseUrl)
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Protocol(..), Url)
--- import Routing.Route as Route
+
 
 type alias Configuration =
     { authorizationEndpoint : Url
@@ -50,7 +50,7 @@ initModel : SharedState.SharedState -> Url -> Maybe String -> Model
 initModel sharedState origin stoken =
     let
         redirectUri =
-            { origin | query = Nothing, fragment = Nothing, path = "/auth" }
+            { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
     in
     { redirectUri = redirectUri
     , flow = Types.Idle
@@ -74,7 +74,7 @@ init : SharedState.SharedState -> Url -> Key -> ( Model, Cmd Msg )
 init sharedState origin navigationKey =
     let
         redirectUri =
-            { origin | query = Nothing, fragment = Nothing, path = "/auth" }
+            { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
 
         clearUrl =
             Navigation.replaceUrl navigationKey (Url.toString redirectUri)
@@ -88,12 +88,11 @@ init sharedState origin navigationKey =
                 flow =
                     Maybe.map Types.Authorized token
             in
-            -- TODO: Handling invalid token in memory
             ( { flow = Maybe.withDefault Types.Idle flow
               , redirectUri = redirectUri
               , token = token
               }
-            , after 750 Millisecond UserInfoRequested
+            , Cmd.batch [ clearUrl, after 750 Millisecond UserInfoRequested ]
             )
 
         -- It is important to set a `state` when making the authorization request
@@ -130,9 +129,9 @@ init sharedState origin navigationKey =
                         , Cmd.batch
                             -- Artificial delay to make the live demo easier to follow.
                             -- In practice, the access token could be requested right here.
-                            [ after 750 Millisecond UserInfoRequested
+                            [ clearUrl
+                            , after 750 Millisecond UserInfoRequested
                             , persistToken (OAuth.tokenToString token)
-                            , clearUrl
                             ]
                         )
 
@@ -272,12 +271,13 @@ view model =
 
 viewIdle : Html Msg
 viewIdle =
-    form
+    div [] form
+
 
 viewAuthorized : Html Msg
 viewAuthorized =
-    span [] [ text "Authorizing user..." ]
-    
+    div [ class "alert alert-warning" ] [ text "Authorizing user..." ]
+
 
 viewErrored : Types.Error -> Html Msg
 viewErrored error =
@@ -303,26 +303,27 @@ noOp model =
     ( model, Cmd.none )
 
 
-update : SharedState.SharedState -> Msg -> Model -> ( Model, Cmd Msg )
-update sharedState msg model =
-    case ( model.flow, msg ) of
-        ( Types.Idle, SignInRequested ) ->
-            signInRequested model
+update : (Msg -> msg) -> SharedState.SharedState -> Msg -> Model -> ( Model, Cmd msg )
+update wrapper sharedState msg model =
+    (\( m, ms ) -> ( m, Cmd.map wrapper ms )) <|
+        case ( model.flow, msg ) of
+            ( _, SignInRequested ) ->
+                signInRequested model
 
-        ( Types.Idle, GotRandomBytes bytes ) ->
-            gotRandomBytes model bytes
+            ( Types.Idle, GotRandomBytes bytes ) ->
+                gotRandomBytes model bytes
 
-        ( Types.Authorized token, UserInfoRequested ) ->
-            userInfoRequested model token
+            ( Types.Authorized token, UserInfoRequested ) ->
+                userInfoRequested model token
 
-        ( Types.Authorized _, GotUserInfo userInfoResponse ) ->
-            gotUserInfo sharedState model userInfoResponse
+            ( Types.Authorized _, GotUserInfo userInfoResponse ) ->
+                gotUserInfo sharedState model userInfoResponse
 
-        ( Types.Done _, SignOutRequested ) ->
-            signOutRequested model
+            ( Types.Done _, SignOutRequested ) ->
+                signOutRequested model
 
-        _ ->
-            noOp model
+            _ ->
+                noOp model
 
 
 authorizedMsg : msg -> Model -> Result String msg
@@ -335,9 +336,9 @@ authorizedMsg msg model =
             Err "Not authorized"
 
 
-form : Html Msg
+form : List (Html Msg)
 form =
-    div []
+    [ div []
         [ div [ class "background" ]
             [-- div [ class "shape" ] []
              -- , div [ class "shape" ] []
@@ -354,3 +355,4 @@ form =
                 ]
             ]
         ]
+    ]

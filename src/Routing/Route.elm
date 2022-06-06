@@ -1,13 +1,17 @@
 module Routing.Route exposing (Model, Msg(..), init, routeNewCoordinates, update, view)
 
 import Auth
+import Bootstrap.CDN as CDN
+import Bootstrap.Grid as Grid
+import Bootstrap.Navbar as Navbar
+import Bootstrap.Pagination exposing (itemsList)
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import Html
-import Html.Styled exposing (..)
-import Html.Styled.Attributes as Attributes exposing (href)
-import Html.Styled.Events exposing (..)
+import Html exposing (..)
+import Html.Attributes as Attributes exposing (href)
+import Html.Events exposing (..)
+import Html.Styled
 import OAuth exposing (ErrorCode(..))
 import Pages.Home as Home
 import Pages.Map as Map
@@ -23,6 +27,7 @@ type Msg
     = ChangedUrl Url.Url
     | NewCoordinates Types.Coordinates
     | NavigateTo Route
+    | NavbarMsg Navbar.State
     | TracksMsg Tracks.Msg
     | HomeMsg Home.Msg
     | AuthMsg Auth.Msg
@@ -35,6 +40,7 @@ type Msg
 type alias Model =
     { route : Route
     , url : Url
+    , navbarState : Navbar.State
     , tracksListModel : Tracks.Model
     , homeModel : Home.Model
     , authModel : Auth.Model
@@ -45,14 +51,17 @@ type alias Model =
 init : SharedState.SharedState -> Url -> ( Model, Cmd Msg )
 init sharedState url =
     let
-        ( tracksModel, trackersMsg ) =
-            Tracks.init
+        tracksModel =
+            Tracks.initModel
 
         ( authModel, authMsg ) =
             Auth.init sharedState url sharedState.navKey
 
         ( mapModel, mapMsg ) =
             Map.init []
+
+        ( navbarState, navbarCmd ) =
+            Navbar.initialState NavbarMsg
     in
     ( { tracksListModel = tracksModel
       , homeModel = Home.initModel
@@ -60,13 +69,15 @@ init sharedState url =
       , url = url
       , authModel = authModel
       , mapModel = mapModel
+      , navbarState = navbarState
       }
     , Cmd.batch
         [ Cmd.map HomeMsg Cmd.none
-        , Cmd.map TracksMsg trackersMsg
         , Cmd.map AuthMsg authMsg
         , Cmd.map MapMsg mapMsg
-        , updatePage url
+        , navbarCmd
+
+        -- , updatePage url
         ]
     )
 
@@ -150,10 +161,10 @@ authUpdateProxy sharedState msg model =
                 HomePage ->
                     let
                         ( updatedHomeModel, updatedHomeMsg, updatedSharedState ) =
-                            Home.update sharedState (Home.NewCoordinates coords) model.homeModel
+                            Home.update HomeMsg sharedState (Home.NewCoordinates coords) model.homeModel
                     in
                     ( { model | homeModel = updatedHomeModel }
-                    , Cmd.map HomeMsg updatedHomeMsg
+                    , updatedHomeMsg
                     , updatedSharedState
                     )
 
@@ -163,6 +174,9 @@ authUpdateProxy sharedState msg model =
 
                 _ ->
                     ( model, Cmd.none, SharedState.NoUpdate )
+
+        NavbarMsg state ->
+            ( { model | navbarState = state }, Cmd.none, SharedState.NoUpdate )
 
         NoOp ->
             ( model
@@ -232,15 +246,18 @@ updatePage url =
         AuthPage ->
             Cmd.none
 
+        AccessDeniedPage ->
+            Cmd.none
+
 
 updateAuth : SharedState.SharedState -> Model -> Auth.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateAuth sharedState model authMsg =
     let
         ( newModel, authCmd ) =
-            Auth.update sharedState authMsg model.authModel
+            Auth.update AuthMsg sharedState authMsg model.authModel
     in
     ( { model | authModel = newModel }
-    , Cmd.map AuthMsg authCmd
+    , authCmd
     , SharedState.NoUpdate
     )
 
@@ -248,13 +265,11 @@ updateAuth sharedState model authMsg =
 updateTrackers : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateTrackers sharedState model trackersMsg =
     let
-        -- _ =
-        -- Debug.log "updateTrackers" ""
         ( nextHomeModel, trackersCmd, trackerSharedState ) =
-            Tracks.update sharedState trackersMsg model.tracksListModel
+            Tracks.update TracksMsg sharedState trackersMsg model.tracksListModel
     in
     ( { model | tracksListModel = nextHomeModel }
-    , Cmd.map TracksMsg trackersCmd
+    , trackersCmd
     , trackerSharedState
     )
 
@@ -263,10 +278,10 @@ updateHome : SharedState.SharedState -> Model -> Home.Msg -> ( Model, Cmd Msg, S
 updateHome sharedState model homeMsg =
     let
         ( newModel, homeCmd, updatedSharedState ) =
-            Home.update sharedState homeMsg model.homeModel
+            Home.update HomeMsg sharedState homeMsg model.homeModel
     in
     ( { model | homeModel = newModel }
-    , Cmd.map HomeMsg homeCmd
+    , homeCmd
     , updatedSharedState
     )
 
@@ -275,10 +290,10 @@ updateMap : SharedState.SharedState -> Model -> Map.Msg -> ( Model, Cmd Msg, Sha
 updateMap sharedState model mapMsg =
     let
         ( newModel, mapCmd ) =
-            Map.update mapMsg model.mapModel
+            Map.update MapMsg mapMsg model.mapModel
     in
     ( { model | mapModel = newModel }
-    , Cmd.map MapMsg mapCmd
+    , mapCmd
     , SharedState.NoUpdate
     )
 
@@ -287,26 +302,7 @@ view : (Msg -> msg) -> SharedState.SharedState -> Model -> Browser.Document msg
 view msgMapper sharedState model =
     let
         title =
-            case model.route of
-                HomePage ->
-                    "Home"
-
-                TracksList ->
-                    "Tracker List"
-
-                NotFound ->
-                    "NotFound"
-
-                AuthPage ->
-                    "Autorization"
-
-                MapPage mtrack ->
-                    case mtrack of
-                        Nothing ->
-                            "Map"
-
-                        Just (TrackId track) ->
-                            "Track" ++ String.fromInt track
+            Helpers.routeToTitle model.route
 
         body =
             case ( model.route, model.authModel.flow ) of
@@ -319,21 +315,18 @@ view msgMapper sharedState model =
                 ( AuthPage, Types.Idle ) ->
                     pageView sharedState model
 
+                ( AuthPage, Types.Errored _ ) ->
+                    pageView sharedState model
+
+                ( AccessDeniedPage, _ ) ->
+                    pageView sharedState model
+
                 _ ->
                     div []
-                        [ header []
-                            [ h1 [] [] --text "site-title" ]
-                            ]
-                        , nav []
-                            [ button
-                                [ onClick (NavigateTo HomePage)
-                                ]
-                                [ text "Home" ]
-                            , button
-                                [ onClick (NavigateTo TracksList)
-                                ]
-                                [ text "Tracks list" ]
-                            ]
+                        [ Navbar.config NavbarMsg
+                            |> Navbar.brand [ href "#" ] [ text "Trackers" ]
+                            |> Navbar.items (List.map (\route -> navigationLinkView (model.route == route) route) linkList)
+                            |> Navbar.view model.navbarState
                         , pageView sharedState model
                         , footer []
                             [ a
@@ -345,11 +338,32 @@ view msgMapper sharedState model =
     in
     { title = title ++ " - Tracker"
     , body =
-        [ body
-            |> Html.Styled.toUnstyled
+        [ Grid.container []
+            [ CDN.stylesheet ]
+        , body
             |> Html.map msgMapper
         ]
     }
+
+
+navigationLinkView : Bool -> Helpers.Route -> Navbar.Item msg
+navigationLinkView isActive route =
+    let
+        title =
+            Helpers.routeToTitle route |> text
+    in
+    if isActive then
+        Navbar.itemLinkActive [ Helpers.routeToString route |> href ] [ title ]
+
+    else
+        Navbar.itemLink [ Helpers.routeToString route |> href ] [ title ]
+
+
+linkList : List Helpers.Route
+linkList =
+    [ Helpers.HomePage
+    , Helpers.TracksList
+    ]
 
 
 pageView : SharedState.SharedState -> Model -> Html Msg
@@ -358,11 +372,13 @@ pageView sharedState model =
         [ case model.route of
             HomePage ->
                 Home.view sharedState model.homeModel
-                    |> Html.Styled.map HomeMsg
+                    |> Html.Styled.toUnstyled
+                    |> Html.map HomeMsg
 
             TracksList ->
                 Tracks.view sharedState model.tracksListModel
-                    |> Html.Styled.map TracksMsg
+                    |> Html.Styled.toUnstyled
+                    |> Html.map TracksMsg
 
             AuthPage ->
                 case model.authModel.flow of
@@ -376,20 +392,30 @@ pageView sharedState model =
                             ]
 
                     Types.Idle ->
-                        Html.Styled.map AuthMsg Auth.viewIdle
+                        Auth.viewIdle
+                            |> Html.Styled.toUnstyled
+                            |> Html.map AuthMsg
 
                     Types.Authorized _ ->
-                        Html.Styled.map AuthMsg Auth.viewAuthorized
+                        Auth.viewAuthorized
+                            |> Html.Styled.toUnstyled
+                            |> Html.map AuthMsg
 
                     Types.Errored err ->
-                        Html.Styled.map AuthMsg (Auth.viewErrored err)
+                        Html.Styled.div [] (Auth.viewErrored err :: Auth.form)
+                            |> Html.Styled.toUnstyled
+                            |> Html.map AuthMsg
 
             MapPage mtrack ->
                 Map.view sharedState model.mapModel
-                    |> Html.Styled.map MapMsg
+                    |> Html.Styled.toUnstyled
+                    |> Html.map MapMsg
 
             NotFound ->
                 h1 [] [ text "404 :(" ]
+
+            AccessDeniedPage ->
+                h1 [] [ text "Access denied" ]
         ]
 
 
