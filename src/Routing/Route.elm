@@ -120,7 +120,7 @@ authUpdateProxy sharedState msg model =
 
         NavigateTo route ->
             case route of
-                TracksList ->
+                Tracks ->
                     ( model
                     , Cmd.batch [ Cmd.map TracksMsg Tracks.fetchData, Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
                     , SharedState.NoUpdate
@@ -237,8 +237,11 @@ updatePage url =
         NotFound ->
             Cmd.none
 
-        TracksList ->
+        Tracks ->
             Cmd.map TracksMsg Tracks.fetchData
+
+        Trackers ->
+            Cmd.none
 
         HomePage ->
             Cmd.none
@@ -306,9 +309,6 @@ view msgMapper sharedState model =
 
         body =
             case ( model.route, model.authModel.flow ) of
-                ( HomePage, _ ) ->
-                    pageView sharedState model
-
                 ( AuthPage, Types.Authorized _ ) ->
                     pageView sharedState model
 
@@ -362,7 +362,8 @@ navigationLinkView isActive route =
 linkList : List Helpers.Route
 linkList =
     [ Helpers.HomePage
-    , Helpers.TracksList
+    , Helpers.Tracks
+    , Helpers.Trackers
     ]
 
 
@@ -375,10 +376,13 @@ pageView sharedState model =
                     |> Html.Styled.toUnstyled
                     |> Html.map HomeMsg
 
-            TracksList ->
+            Tracks ->
                 Tracks.view sharedState model.tracksListModel
                     |> Html.Styled.toUnstyled
                     |> Html.map TracksMsg
+
+            Trackers ->
+                div [] [ text "Not implemented" ]
 
             AuthPage ->
                 case model.authModel.flow of

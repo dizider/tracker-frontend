@@ -27,7 +27,7 @@ let liveMarkers = {} // last positions of all live tracks
 
 let rootUrl = "***REMOVED***" //window.location.host
 let wsUrl = "wss://" + rootUrl + "/subscribe";
-let wsSocket = new WebSocket(wsUrl)
+let wsSocket
 
 console.log(wsUrl)
 
@@ -69,6 +69,14 @@ function persistedToken() {
     return token ? token : null;
 }
 
+document.addEventListener("fullscreenchange", () => {
+    if (document.fullscreenElement === null) {
+        console.log("Exited fullscreen");
+    } else {
+        console.log("Entered fullscreen");
+    }
+});
+
 function initApp() {
     app = Elm.Main.init({
         node: rootNode,
@@ -78,6 +86,8 @@ function initApp() {
             token: persistedToken()
         }
     });
+
+    wsSocket = new WebSocket(wsUrl)
 
     app.ports.genRandomBytes.subscribe(n => {
         const buffer = new Uint8Array(n);
@@ -138,6 +148,13 @@ function initApp() {
         }
     });
 
+    app.ports.fullscreenMap.subscribe(fullscreen => {
+        if (fullscreen)
+            document.getElementById("maps").requestFullscreen();
+        else
+            document.exitFullscreen();
+    });
+
     // app.ports.reloadMap.subscribe(message => {
     //     let elem = document.getElementById('maps')
     //     console.log(elem)
@@ -180,20 +197,30 @@ customElements.define('seznam-maps', class extends HTMLElement {
         this._screen = document.getElementById("map");
         var center = SMap.Coords.fromWGS84(14.41790, 50.12655);
         map = new SMap(JAK.gel(this._screen), center, 13);
+
+        var sync = new SMap.Control.Sync({ bottomSpace: 0 });
+        map.addControl(sync);
+
         map.addDefaultLayer(SMap.DEF_TURIST).enable()
         map.addDefaultLayer(SMap.DEF_OPHOTO)
         map.addDefaultLayer(SMap.DEF_BASE)
         map.addDefaultControls();
 
-        let layerSwitch = new SMap.Control.Layer({width: 65, items: 3, page: 3})
+        let layerSwitch = new SMap.Control.Layer({ width: 65, items: 3, page: 3 })
         layerSwitch.addDefaultLayer(SMap.DEF_BASE)
         layerSwitch.addDefaultLayer(SMap.DEF_OPHOTO)
         layerSwitch.addDefaultLayer(SMap.DEF_TURIST)
-        map.addControl(layerSwitch, {left: "8px", top: "53px"})
+
+        map.addControl(layerSwitch, { left: "8px", top: "53px" })
 
         markersLayer = new SMap.Layer.Marker()
         map.addLayer(markersLayer)
         markersLayer.enable()
+
+        map.getSignals().addListener(window, "map-click", function (e) {
+            console.log("map clicked")
+            // document.getElementById("maps").requestFullscreen();
+        });
 
         wsSocket.addEventListener('open', function (event) {
             console.log('Server WS connected!');
