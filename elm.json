@@ -21,10 +21,12 @@
             "krisajenkins/remotedata": "6.0.1",
             "ohanhi/remotedata-http": "4.0.0",
             "rtfeldman/elm-css": "17.1.1",
+            "rundis/elm-bootstrap": "5.2.0",
             "solcates/solcates-elm-oauth2": "1.0.1"
         },
         "indirect": {
             "Janiczek/cmd-extra": "1.1.0",
+            "avh4/elm-color": "1.0.0",
             "billstclair/elm-port-funnel": "1.2.0",
             "danfishgold/base64-bytes": "1.1.0",
             "elm/file": "1.0.5",
@@ -41,7 +43,6 @@
             "elm-explorations/test": "1.0.0"
         },
         "indirect": {
-            "avh4/elm-color": "1.0.0",
             "elm/random": "1.0.0"
         }
     }

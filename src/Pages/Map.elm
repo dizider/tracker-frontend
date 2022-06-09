@@ -11,7 +11,6 @@ import Http as Http
 import Pages.Partials.MapView as MapView
 import Ports as Ports
 import RemoteData exposing (RemoteData(..), WebData)
-import RemoteData.Http as RHttp
 import Routing.Helpers as Helpers
 import SharedState as SharedState
 import Types exposing (Track)
@@ -19,6 +18,7 @@ import Types exposing (Track)
 
 type alias Model =
     { tracks : List Track
+    , map : MapView.Model
     }
 
 
@@ -26,6 +26,7 @@ type Msg
     = NoOp
     | AddTrack Int (Result Http.Error String)
     | RemoveTrack Int
+    | MapViewMsg MapView.Msg
 
 
 
@@ -35,6 +36,7 @@ type Msg
 init : List Track -> ( Model, Cmd Msg )
 init tracks =
     ( { tracks = tracks
+      , map = MapView.initModel
       }
     , fetchData (List.map (\t -> Helpers.TrackId t.id) tracks)
     )
@@ -68,6 +70,15 @@ update wrapper msg model =
             RemoveTrack id ->
                 ( model, Ports.removeTrack id )
 
+            MapViewMsg mapMsg ->
+                let
+                    ( mapViewModel, mapViewMsg ) =
+                        MapView.update mapMsg model.map
+                in
+                ( { model | map = mapViewModel }
+                , mapViewMsg
+                )
+
             NoOp ->
                 ( model, Cmd.none )
 
@@ -75,5 +86,5 @@ update wrapper msg model =
 view : SharedState.SharedState -> Model -> Html Msg
 view sharedState model =
     div []
-        [ MapView.mapView []
+        [ MapView.mapView MapViewMsg []
         ]

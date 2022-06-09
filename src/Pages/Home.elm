@@ -19,6 +19,7 @@ import Types as Types exposing (Coordinates)
 
 type alias Model =
     { coordinates : WebData (Dict.Dict String Coordinates)
+    , map : MapView.Model
     }
 
 
@@ -27,11 +28,13 @@ type Msg
     | NewCoordinates Types.Coordinates
     | HandlePositons (WebData (Dict.Dict String Coordinates))
     | NavigateTo Helpers.Route
+    | MapViewMsg MapView.Msg
 
 
 initModel : Model
 initModel =
     { coordinates = Success Dict.empty
+    , map = MapView.initModel
     }
 
 
@@ -50,44 +53,53 @@ fetchInitalCoordinates =
 view : SharedState.SharedState -> Model -> Html Msg
 view sharedState model =
     div []
-        [ MapView.mapView []
-        , button [ id "back", NavigateTo Helpers.TracksList |> onClick ] [ text "List of tracks" ]
+        [ MapView.mapView MapViewMsg []
+
+        -- [ button [ id "back", NavigateTo Helpers.Tracks |> onClick ] [ text "List of tracks" ]
+        -- ]
         ]
 
 
 update : (Msg -> msg) -> SharedState.SharedState -> Msg -> Model -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
 update wrapper sharedState msg model =
-    (\(m, ms, s) -> (m, Cmd.map wrapper ms, s)) <| 
-    case msg of
-        NewCoordinates coords ->
-            let
-                updatedCoordinates =
-                    RemoteData.map (\x -> Dict.insert (String.fromInt coords.trackId) coords x) model.coordinates
-            in
-            case updatedCoordinates of
-                Success coordinates ->
-                    ( { model | coordinates = updatedCoordinates }
-                    , Dict.values coordinates |> sendCoordinatesToMap 
-                    , SharedState.NoUpdate
-                    )
+    (\( m, ms, s ) -> ( m, Cmd.map wrapper ms, s )) <|
+        case msg of
+            NewCoordinates coords ->
+                let
+                    updatedCoordinates =
+                        RemoteData.map (\x -> Dict.insert (String.fromInt coords.trackId) coords x) model.coordinates
+                in
+                case updatedCoordinates of
+                    Success coordinates ->
+                        ( { model | coordinates = updatedCoordinates }
+                        , Dict.values coordinates |> sendCoordinatesToMap
+                        , SharedState.NoUpdate
+                        )
 
-                _ ->
-                    ( model
-                    , Cmd.none
-                    , SharedState.NoUpdate
-                    )
+                    _ ->
+                        ( model
+                        , Cmd.none
+                        , SharedState.NoUpdate
+                        )
 
-        HandlePositons data ->
-            ( { model | coordinates = data }
-            , Cmd.none
-            , SharedState.NoUpdate
-            )
+            HandlePositons data ->
+                ( { model | coordinates = data }
+                , Cmd.none
+                , SharedState.NoUpdate
+                )
 
-        NavigateTo route ->
-            ( model, pushUrl sharedState.navKey (routeToString route), SharedState.NoUpdate )
+            NavigateTo route ->
+                ( model, pushUrl sharedState.navKey (routeToString route), SharedState.NoUpdate )
 
-        NoOp ->
-            ( model, Cmd.none, SharedState.NoUpdate )
+            MapViewMsg mapMsg ->
+                let
+                    ( mapViewModel, mapViewMsg ) =
+                        MapView.update mapMsg model.map
+                in
+                ( { model | map = mapViewModel }, mapViewMsg, SharedState.NoUpdate )
+
+            NoOp ->
+                ( model, Cmd.none, SharedState.NoUpdate )
 
 
 sendCoordinatesToMap : List Coordinates -> Cmd Msg

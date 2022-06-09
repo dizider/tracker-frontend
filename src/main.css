@@ -177,6 +177,32 @@ input{
   transform: translateY(0);
 }
 
+#fullscreen {
+  position: absolute;
+  top: 18px;
+  left: 8px;
+
+  display: block;
+  padding: 5px 8px 1px;
+
+  /*inset: 29px auto auto 8px;*/
+
+  border: 1px solid rgba(107, 117, 128, 0.3);
+  border-radius: 2px;
+
+  color: #6b7580;
+  background-color: white;
+
+  font-size: 14px;
+  text-align: right;
+  text-decoration: none;
+
+  cursor: pointer;
+
+  z-index: 10000000;
+  visibility: visible;
+}
+
 #back {
   position: absolute;
   top: 18px;

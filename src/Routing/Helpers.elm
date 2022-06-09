@@ -12,7 +12,8 @@ type TrackId
 type Route
     = NotFound
     | AccessDeniedPage
-    | TracksList
+    | Tracks
+    | Trackers
     | HomePage
     | AuthPage
     | MapPage (Maybe TrackId)
@@ -34,7 +35,8 @@ matchRoute =
         [ --Parser.map MapPage <| Parser.s "map" </> Parser.map Tracker Parser.int
           Parser.map HomePage (Parser.s "home")
         , Parser.map HomePage Parser.top
-        , Parser.map TracksList (Parser.s "trackers")
+        , Parser.map Tracks (Parser.s "tracks")
+        , Parser.map Trackers (Parser.s "trackers")
         , Parser.map AuthPage (Parser.s "auth")
         , Parser.map MapPage <| Parser.s "map" <?> Query.map (Maybe.map TrackId) mapParser
         ]
@@ -51,8 +53,11 @@ routeToTitle route =
         HomePage ->
             "Home"
 
-        TracksList ->
-            "Tracker List"
+        Tracks ->
+            "Tracks"
+
+        Trackers ->
+            "Trackers"
 
         NotFound ->
             "NotFound"
@@ -78,7 +83,10 @@ routeToString route =
         NotFound ->
             "/not-found"
 
-        TracksList ->
+        Tracks ->
+            "/tracks"
+
+        Trackers ->
             "/trackers"
 
         HomePage ->
