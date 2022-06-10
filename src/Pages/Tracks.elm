@@ -1,34 +1,34 @@
 module Pages.Tracks exposing (..)
 
+import Api as Api
 import Browser.Navigation exposing (pushUrl)
 import Decoders as Decoders
-import Html
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (class)
 import Html.Styled.Events as Events exposing (..)
 import Json.Decode exposing (Decoder)
-import RemoteData exposing (RemoteData(..), WebData)
-import RemoteData.Http as Http
+import RemoteData as RD
+import RemoteData.Http as RemoteHttp
 import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
 import Types exposing (Track)
 
 
 type alias Model =
-    { listOfTracks : WebData (List Track)
+    { listOfTracks : RD.WebData (List Track)
     }
 
 
 type Msg
     = NoOp
-    | HandleTracks (WebData (List Track))
+    | HandleTracks (RD.WebData (List Track))
     | NavigateTo TrackId
     | ReloadData
 
 
 initModel : Model
 initModel =
-    { listOfTracks = NotAsked
+    { listOfTracks = RD.NotAsked
     }
 
 
@@ -39,14 +39,9 @@ fetchData =
         ]
 
 
-get : String -> (WebData success -> msg) -> Decoder success -> Cmd msg
-get =
-    Http.getWithConfig Http.defaultConfig
-
-
 fetchTracks : Cmd Msg
 fetchTracks =
-    get "https://tracker.dev.jenda.eu/tracks-list"
+    Api.fetchTracks
         HandleTracks
         Decoders.decodeTrackList
 
@@ -57,7 +52,7 @@ update wrapper sharedState msg model =
         case msg of
             ReloadData ->
                 ( { model
-                    | listOfTracks = Loading
+                    | listOfTracks = RD.Loading
                   }
                 , fetchData
                 , SharedState.NoUpdate
@@ -77,9 +72,9 @@ update wrapper sharedState msg model =
 
 
 view : SharedState.SharedState -> Model -> Html Msg
-view sharedState model =
+view _ model =
     case model.listOfTracks of
-        Success data ->
+        RD.Success data ->
             div []
                 [ data
                     |> List.map
