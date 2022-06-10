@@ -1,5 +1,6 @@
 module Pages.Home exposing (Model, Msg(..), initModel, update, view)
 
+import Api as Api exposing (fetchActiveTrackers)
 import Browser.Navigation exposing (pushUrl)
 import Css exposing (..)
 import Decoders as Decoders
@@ -45,7 +46,7 @@ get =
 
 fetchInitalCoordinates : Cmd Msg
 fetchInitalCoordinates =
-    get "***REMOVED***/tracker/positions"
+    Api.fetchInitalCoordinates
         HandlePositons
         Decoders.decodeCoordinatesAsDict
 
