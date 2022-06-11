@@ -3,8 +3,12 @@ module Routing.Route exposing (Model, Msg(..), init, routeNewCoordinates, update
 import Auth
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Col as Col
+import Bootstrap.Grid.Row as Row
 import Bootstrap.Navbar as Navbar
 import Bootstrap.Pagination exposing (itemsList)
+import Bootstrap.Utilities.Flex as UtilsFlex
+import Bootstrap.Utilities.Spacing as Spacing
 import Browser
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
@@ -15,6 +19,7 @@ import Html.Styled
 import OAuth exposing (ErrorCode(..))
 import Pages.Home as Home
 import Pages.Map as Map
+import Pages.Trackers as Trackers
 import Pages.Tracks as Tracks
 import Routing.Helpers as Helpers exposing (..)
 import SharedState as SharedState
@@ -29,6 +34,7 @@ type Msg
     | NavigateTo Route
     | NavbarMsg Navbar.State
     | TracksMsg Tracks.Msg
+    | TrackersMsg Trackers.Msg
     | HomeMsg Home.Msg
     | AuthMsg Auth.Msg
     | MapMsg Map.Msg
@@ -42,6 +48,7 @@ type alias Model =
     , url : Url
     , navbarState : Navbar.State
     , tracksListModel : Tracks.Model
+    , trackersModel : Trackers.Model
     , homeModel : Home.Model
     , authModel : Auth.Model
     , mapModel : Map.Model
@@ -54,6 +61,9 @@ init sharedState url =
         tracksModel =
             Tracks.initModel
 
+        trackersModel =
+            Trackers.initModel
+
         ( authModel, authMsg ) =
             Auth.init sharedState url sharedState.navKey
 
@@ -64,6 +74,7 @@ init sharedState url =
             Navbar.initialState NavbarMsg
     in
     ( { tracksListModel = tracksModel
+      , trackersModel = trackersModel
       , homeModel = Home.initModel
       , route = parseUrl url
       , url = url
@@ -147,6 +158,9 @@ authUpdateProxy sharedState msg model =
                     )
 
         TracksMsg tmsg ->
+            updateTracks sharedState model tmsg
+
+        TrackersMsg tmsg ->
             updateTrackers sharedState model tmsg
 
         HomeMsg hmsg ->
@@ -241,7 +255,7 @@ updatePage url =
             Cmd.map TracksMsg Tracks.fetchData
 
         Trackers ->
-            Cmd.none
+            Cmd.map TrackersMsg Trackers.fetchData
 
         HomePage ->
             Cmd.none
@@ -265,15 +279,27 @@ updateAuth sharedState model authMsg =
     )
 
 
-updateTrackers : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
-updateTrackers sharedState model trackersMsg =
+updateTracks : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+updateTracks sharedState model tracksMsg =
     let
-        ( nextHomeModel, trackersCmd, trackerSharedState ) =
-            Tracks.update TracksMsg sharedState trackersMsg model.tracksListModel
+        ( nextHomeModel, tracksCmd, tracksSharedState ) =
+            Tracks.update TracksMsg sharedState tracksMsg model.tracksListModel
     in
     ( { model | tracksListModel = nextHomeModel }
+    , tracksCmd
+    , tracksSharedState
+    )
+
+
+updateTrackers : SharedState.SharedState -> Model -> Trackers.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+updateTrackers sharedState model tracksMsg =
+    let
+        ( nextHomeModel, trackersCmd, trackersSharedState ) =
+            Trackers.update TrackersMsg sharedState tracksMsg model.trackersModel
+    in
+    ( { model | trackersModel = nextHomeModel }
     , trackersCmd
-    , trackerSharedState
+    , trackersSharedState
     )
 
 
@@ -369,57 +395,80 @@ linkList =
 
 pageView : SharedState.SharedState -> Model -> Html Msg
 pageView sharedState model =
-    div []
-        [ case model.route of
+    template (Html.div [] []) <|
+        case model.route of
             HomePage ->
-                Home.view sharedState model.homeModel
-                    |> Html.Styled.toUnstyled
-                    |> Html.map HomeMsg
+                Grid.col [ Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                    [ Home.view sharedState model.homeModel
+                        |> Html.Styled.toUnstyled
+                        |> Html.map HomeMsg
+                    ]
 
             Tracks ->
-                Tracks.view sharedState model.tracksListModel
-                    |> Html.Styled.toUnstyled
-                    |> Html.map TracksMsg
+                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                    [ Tracks.view sharedState model.tracksListModel
+                        -- |> Html.Styled.toUnstyled
+                        |> Html.map TracksMsg
+                    ]
 
             Trackers ->
-                div [] [ text "Not implemented" ]
+                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                    [ Trackers.view model.trackersModel
+                        -- |> Html.Styled.toUnstyled
+                        |> Html.map TrackersMsg
+                    ]
 
             AuthPage ->
-                case model.authModel.flow of
-                    Types.Done userInfo ->
-                        div []
-                            [ text "User details: "
-                            , ul []
-                                [ li [] [ text "email: ", text userInfo.email ]
-                                , li [] [ text "name: ", text userInfo.name ]
+                Grid.col [ Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                    [ case model.authModel.flow of
+                        Types.Done userInfo ->
+                            div []
+                                [ text "User details: "
+                                , ul []
+                                    [ li [] [ text "email: ", text userInfo.email ]
+                                    , li [] [ text "name: ", text userInfo.name ]
+                                    ]
                                 ]
-                            ]
 
-                    Types.Idle ->
-                        Auth.viewIdle
-                            |> Html.Styled.toUnstyled
-                            |> Html.map AuthMsg
+                        Types.Idle ->
+                            Auth.viewIdle
+                                |> Html.Styled.toUnstyled
+                                |> Html.map AuthMsg
 
-                    Types.Authorized _ ->
-                        Auth.viewAuthorized
-                            |> Html.Styled.toUnstyled
-                            |> Html.map AuthMsg
+                        Types.Authorized _ ->
+                            Auth.viewAuthorized
+                                |> Html.Styled.toUnstyled
+                                |> Html.map AuthMsg
 
-                    Types.Errored err ->
-                        Html.Styled.div [] (Auth.viewErrored err :: Auth.form)
-                            |> Html.Styled.toUnstyled
-                            |> Html.map AuthMsg
+                        Types.Errored err ->
+                            Html.Styled.div [] (Auth.viewErrored err :: Auth.form)
+                                |> Html.Styled.toUnstyled
+                                |> Html.map AuthMsg
+                    ]
 
             MapPage mtrack ->
-                Map.view sharedState model.mapModel
-                    |> Html.Styled.toUnstyled
-                    |> Html.map MapMsg
+                Grid.col [ Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                    [ Map.view sharedState model.mapModel
+                        |> Html.Styled.toUnstyled
+                        |> Html.map MapMsg
+                    ]
 
             NotFound ->
-                h1 [] [ text "404 :(" ]
+                Grid.col [] [ h1 [] [ text "404 :(" ] ]
 
             AccessDeniedPage ->
-                h1 [] [ text "Access denied" ]
+                Grid.col [] [ h1 [] [ text "Access denied" ] ]
+
+
+template : Html msg -> Grid.Column msg -> Html msg
+template left content =
+    Grid.containerFluid []
+        [ Grid.row [ Row.attrs [ UtilsFlex.row, UtilsFlex.justifyCenter ] ]
+            [ -- Grid.col [ Col.lg2, Col.attrs [ UtilsFlex.alignSelfEnd ] ] [ left ]
+              content
+
+            -- , Grid.col [ Col.lg2, Col.attrs [ UtilsFlex.alignSelfEnd ] ] [ text "konec"]
+            ]
         ]
 
 

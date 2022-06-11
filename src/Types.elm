@@ -55,6 +55,12 @@ type alias Track =
     }
 
 
+type alias Tracker =
+    { id : Int
+    , name : String
+    }
+
+
 type alias Coordinates =
     { id : Int
     , trackId : Int

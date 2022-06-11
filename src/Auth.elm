@@ -339,11 +339,13 @@ authorizedMsg msg model =
 form : List (Html Msg)
 form =
     [ div []
-        [ div [ class "background" ]
-            [-- div [ class "shape" ] []
+        [ 
+            -- div [ class "background" ]
+            --[ div [ class "shape" ] []
              -- , div [ class "shape" ] []
-            ]
-        , div [ class "login-form" ]
+            -- ]
+        -- , 
+        div [ class "login-form" ]
             [ div [ class "label" ]
                 [ h3 [] [ text (Config.translates "login-label") ]
                 ]
