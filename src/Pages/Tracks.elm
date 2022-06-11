@@ -1,18 +1,24 @@
 module Pages.Tracks exposing (..)
 
 import Api as Api
+import Bootstrap.Button as Button
+import Bootstrap.Form.Checkbox as Checkbox
+import Bootstrap.Table as Table
 import Browser.Navigation exposing (pushUrl)
 import Decoders as Decoders
-import Html.Styled as Html exposing (..)
+import Html as Html
+import Html.Attributes as Attributes
+import Html.Events as Events
+import Html.Styled
 import Html.Styled.Attributes exposing (class)
-import Html.Styled.Events as Events exposing (..)
+import Html.Styled.Events as StyledEvents
 import Json.Decode exposing (Decoder)
 import RemoteData as RD
 import RemoteData.Http as RemoteHttp
 import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
 import Types exposing (Track)
-
+import Bootstrap.Spinner as Spinner
 
 type alias Model =
     { listOfTracks : RD.WebData (List Track)
@@ -28,7 +34,7 @@ type Msg
 
 initModel : Model
 initModel =
-    { listOfTracks = RD.NotAsked
+    { listOfTracks = RD.Loading
     }
 
 
@@ -71,25 +77,49 @@ update wrapper sharedState msg model =
                 ( model, Cmd.none, SharedState.NoUpdate )
 
 
-view : SharedState.SharedState -> Model -> Html Msg
+view : SharedState.SharedState -> Model -> Html.Html Msg
 view _ model =
     case model.listOfTracks of
         RD.Success data ->
-            div []
-                [ data
-                    |> List.map
-                        (\track ->
-                            let
-                                trackId =
-                                    Helpers.TrackId track.id
-                            in
-                            div [ class "p-2" ]
-                                [ button [ class "track-button", Events.onClick (NavigateTo trackId) ]
-                                    [ div [] [ text track.name, p [] [ text (String.fromInt track.id) ] ] ]
+            let
+                rows =
+                    List.map
+                        (\tracker ->
+                            Table.tr []
+                                [ Table.td [] [ checkbox tracker ]
+                                , Table.td [] [ Html.text <| String.fromInt tracker.id ]
+                                , Table.td [] [ Html.text tracker.name ]
+                                , Table.td [] [ operations tracker ]
                                 ]
                         )
-                    |> div [ class "tracks d-flex flex-wrap" ]
+                        data
+            in
+            Html.div []
+                [ Table.table
+                    { options = [ Table.striped, Table.responsive, Table.hover ]
+                    , thead =
+                        Table.simpleThead
+                            [ Table.th [] [ Button.button [ Button.primary, Button.small ] [ Html.text "Show selected" ] ]
+                            , Table.th [] [ Html.text "ID" ]
+                            , Table.th [] [ Html.text "Name" ]
+                            , Table.th [] [ Html.text "Operations" ]
+                            ]
+                    , tbody = Table.tbody [] rows
+                    }
                 ]
 
+        RD.Loading ->
+            Spinner.spinner [ Spinner.grow, Spinner.large ] [ Spinner.srMessage "Loading..." ]
+
         _ ->
-            div [] [ text "No data" ]
+            Html.div [] [ Html.text "No data" ]
+
+
+operations : Types.Track -> Html.Html Msg
+operations track =
+    Button.button [ Button.primary, Button.small, Button.onClick (NavigateTo (Helpers.TrackId track.id)) ] [ Html.text "Show" ]
+
+
+checkbox : Types.Track -> Html.Html Msg
+checkbox track =
+    Checkbox.custom [ Checkbox.id (String.fromInt track.id) ] ""

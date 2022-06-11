@@ -8,6 +8,8 @@ import Url.Parser.Query as Query
 type TrackId
     = TrackId Int
 
+type TrackerId
+    = TrackerId Int
 
 type Route
     = NotFound

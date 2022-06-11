@@ -1,12 +1,10 @@
-module Decoders exposing (decodeTrack, decodeTrackList, decodeCoordinates, decodeCoordinatesAsDict)
+module Decoders exposing (decodeCoordinates, decodeCoordinatesAsDict, decodeTrack, decodeTrackList, decodeTracker, decodeTrackerList)
 
-import Html.Attributes exposing (required)
-import Http exposing (request)
-import Json.Decode exposing (Decoder, at, dict, keyValuePairs, field, float, int, string, succeed, map)
-import Json.Decode.Pipeline exposing (requiredAt)
-import Types exposing (Track, Coordinates)
 import Dict as Dict
-import Routing.Helpers exposing (TrackId)
+import Json.Decode exposing (Decoder, dict, float, int, string, succeed)
+import Json.Decode.Pipeline exposing (requiredAt)
+import Types exposing (Coordinates, Track, Tracker)
+
 
 decodeTrack : Decoder Track
 decodeTrack =
@@ -33,6 +31,19 @@ decodeCoordinates =
         |> requiredAt [ "alt" ] float
         |> requiredAt [ "battery" ] float
 
+
 decodeCoordinatesAsDict : Decoder (Dict.Dict String Coordinates)
-decodeCoordinatesAsDict = 
+decodeCoordinatesAsDict =
     dict decodeCoordinates
+
+
+decodeTracker : Decoder Tracker
+decodeTracker =
+    succeed Tracker
+        |> requiredAt [ "id" ] int
+        |> requiredAt [ "name" ] string
+
+
+decodeTrackerList : Decoder (List Tracker)
+decodeTrackerList =
+    Json.Decode.list decodeTracker

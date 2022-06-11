@@ -1,13 +1,14 @@
-module Api exposing (fetchActiveTrackers, fetchActiveTracks, fetchInitalCoordinates, fetchTrack, fetchTrackers, fetchTracks)
+module Api exposing (fetchActiveTrackers, fetchActiveTracks, fetchInitalCoordinates, fetchTrack, fetchTrackers, fetchTracks, trackAssing, trackCreate)
 
+import Decoders as Decoders
 import Http as Http
 import Json.Decode exposing (Decoder)
 import Json.Encode exposing (Value)
 import RemoteData exposing (WebData)
 import RemoteData.Http as RemoteHttp
 import Routing.Helpers as Helpers
-import Types as Types exposing (Track)
-import Url.Builder exposing (QueryParameter, absolute, crossOrigin, int)
+import Types as Types
+import Url.Builder exposing (QueryParameter, crossOrigin, string)
 
 
 origin : String
@@ -42,7 +43,7 @@ fetchActiveTracks =
 
 fetchTrackers : (WebData (List Types.Tracker) -> msg) -> Decoder (List Types.Tracker) -> Cmd msg
 fetchTrackers =
-    get <| withOrigin [ "trackers", "list" ] []
+    get <| withOrigin [ "trackers-list" ] []
 
 
 fetchActiveTrackers : (WebData success -> msg) -> Decoder success -> Cmd msg
@@ -58,11 +59,22 @@ fetchInitalCoordinates =
 fetchTrack : (WebData String -> msg) -> Helpers.TrackId -> Cmd msg
 fetchTrack response (Helpers.TrackId id) =
     Http.get
-        { url = withOrigin [ "list", "gpx" ] [ int "id" id ]
+        { url = withOrigin [ "list", "gpx", String.fromInt id ] []
         , expect = Http.expectString (RemoteData.fromResult >> response)
         }
 
 
-trackAssing : (WebData success -> msg) -> Decoder success -> Types.Track -> Types.Tracker -> Cmd msg
-trackAssing wrapper decoder track tracker =
-    get (withOrigin [ "track-assign" ] [ int "track" track.id, int "tracker" tracker.id ]) wrapper decoder
+trackAssing : (Result Http.Error String -> msg) -> Helpers.TrackId -> Helpers.TrackerId -> Cmd msg
+trackAssing response (Helpers.TrackId track) (Helpers.TrackerId tracker) =
+    Http.get
+        { url = withOrigin [ "track-assign", String.fromInt tracker, String.fromInt track ] []
+        , expect = Http.expectString response
+        }
+
+
+trackCreate : (Result Http.Error Types.Tracker -> msg) -> Helpers.TrackerId -> String -> Cmd msg
+trackCreate response (Helpers.TrackerId tracker) name =
+    Http.get
+        { url = withOrigin [ "track-create", String.fromInt tracker, name ] [ string "assign" "True" ]
+        , expect = Http.expectJson response Decoders.decodeTracker
+        }
