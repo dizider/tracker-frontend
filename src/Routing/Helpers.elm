@@ -1,6 +1,10 @@
 module Routing.Helpers exposing (..)
 
+import Json.Decode as Decode exposing (decodeString, list)
+import Json.Encode as Encode
+import Types exposing (Tracker)
 import Url exposing (Url)
+import Url.Builder as Builder
 import Url.Parser as Parser exposing (..)
 import Url.Parser.Query as Query
 
@@ -8,8 +12,10 @@ import Url.Parser.Query as Query
 type TrackId
     = TrackId Int
 
+
 type TrackerId
     = TrackerId Int
+
 
 type Route
     = NotFound
@@ -18,7 +24,7 @@ type Route
     | Trackers
     | HomePage
     | AuthPage
-    | MapPage (Maybe TrackId)
+    | MapPage (Maybe (List TrackId))
 
 
 parseUrl : Url -> Route
@@ -40,13 +46,21 @@ matchRoute =
         , Parser.map Tracks (Parser.s "tracks")
         , Parser.map Trackers (Parser.s "trackers")
         , Parser.map AuthPage (Parser.s "auth")
-        , Parser.map MapPage <| Parser.s "map" <?> Query.map (Maybe.map TrackId) mapParser
+        , Parser.map MapPage <|
+            Parser.s "map"
+                <?> Query.map
+                        (\ms ->
+                            Maybe.andThen
+                                (\s -> decodeString (list Decode.int) s |> Result.toMaybe |> Maybe.map (List.map TrackId))
+                                ms
+                        )
+                        mapParser
         ]
 
 
-mapParser : Query.Parser (Maybe Int)
+mapParser : Query.Parser (Maybe String)
 mapParser =
-    Query.int "track"
+    Query.string "track"
 
 
 routeToTitle : Route -> String
@@ -75,8 +89,8 @@ routeToTitle route =
                 Nothing ->
                     "Map"
 
-                Just (TrackId track) ->
-                    "Track " ++ String.fromInt track
+                Just track ->
+                    "Track "
 
 
 routeToString : Route -> String
@@ -105,5 +119,9 @@ routeToString route =
                 Nothing ->
                     "/map"
 
-                Just (TrackId id) ->
-                    "/map?track=" ++ String.fromInt id
+                Just track ->
+                    let
+                        rawTrack =
+                            List.map (\(TrackId id) -> id) track
+                    in
+                    Builder.absolute [ "map" ] [ Builder.string "track" (Encode.encode 0 (Encode.list Encode.int rawTrack)) ]

@@ -139,9 +139,9 @@ authUpdateProxy sharedState msg model =
 
                 MapPage mtrackId ->
                     case mtrackId of
-                        Just id ->
+                        Just ids ->
                             ( model
-                            , Cmd.batch [ Cmd.map MapMsg (Map.fetchData [ id ]), Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
+                            , Cmd.batch [ Cmd.map MapMsg (Map.fetchData ids), Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
                             , SharedState.NoUpdate
                             )
 
@@ -242,8 +242,8 @@ updatePage url =
     case parseUrl url of
         MapPage mtrackId ->
             case mtrackId of
-                Just id ->
-                    Cmd.map MapMsg (Map.fetchData [ id ])
+                Just ids ->
+                    Cmd.map MapMsg (Map.fetchData ids)
 
                 Nothing ->
                     Cmd.none
