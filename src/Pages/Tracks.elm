@@ -3,21 +3,20 @@ module Pages.Tracks exposing (..)
 import Api as Api
 import Bootstrap.Button as Button
 import Bootstrap.Form.Checkbox as Checkbox
+import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Row as Row
 import Bootstrap.Spinner as Spinner
 import Bootstrap.Table as Table
+import Bootstrap.Utilities.Flex
 import Browser.Navigation exposing (pushUrl)
 import Decoders as Decoders
 import Dict as Dict
 import Html as Html
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Html.Styled
-import Html.Styled.Attributes exposing (class)
-import Html.Styled.Events as StyledEvents
+import Icons as Icons
 import Json.Decode exposing (Decoder)
-import Pages.Map as Map
 import RemoteData as RD
-import RemoteData.Http as RemoteHttp
 import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
 import Types exposing (Track)
@@ -26,6 +25,7 @@ import Types exposing (Track)
 type alias Model =
     { listOfTracks : RD.WebData (List Track)
     , selectedTracks : Maybe (Dict.Dict Int Track)
+    , isAllSelected : Bool
     }
 
 
@@ -36,12 +36,14 @@ type Msg
     | ShowMultipleTracks
     | ReloadData
     | TrackerSelectToggle Track Bool
+    | SelectAllToggle Bool
 
 
 initModel : Model
 initModel =
     { listOfTracks = RD.Loading
     , selectedTracks = Nothing
+    , isAllSelected = False
     }
 
 
@@ -118,6 +120,18 @@ update wrapper sharedState msg model =
                     Nothing ->
                         ( model, Cmd.none, SharedState.NoUpdate )
 
+            SelectAllToggle state ->
+                case ( state, model.listOfTracks ) of
+                    ( True, RD.Success tracks ) ->
+                        let
+                            allTracksAsDict =
+                                List.map (\track -> ( track.id, track )) tracks |> Dict.fromList
+                        in
+                        ( { model | isAllSelected = state, selectedTracks = Just allTracksAsDict }, Cmd.none, SharedState.NoUpdate )
+
+                    _ ->
+                        ( { model | isAllSelected = False, selectedTracks = Nothing }, Cmd.none, SharedState.NoUpdate )
+
             NoOp ->
                 ( model, Cmd.none, SharedState.NoUpdate )
 
@@ -140,11 +154,14 @@ view _ model =
                         data
             in
             Html.div []
-                [ Table.table
+                [ Grid.row [ Row.attrs [ Attributes.class "sticky-top" ] ] [ Grid.col [] [ globalOperations model ] ]
+                , Table.table
                     { options = [ Table.striped, Table.responsive, Table.hover ]
                     , thead =
                         Table.simpleThead
-                            [ Table.th [] [ Button.button [  Button.disabled (model.selectedTracks == Nothing), Button.primary, Button.small, Button.onClick ShowMultipleTracks ] [ Html.text "Show selected" ] ]
+                            [ Table.th []
+                                [ Checkbox.custom [ Checkbox.id "all", Checkbox.checked model.isAllSelected, Checkbox.onCheck SelectAllToggle ] ""
+                                ]
                             , Table.th [] [ Html.text "ID" ]
                             , Table.th [] [ Html.text "Name" ]
                             , Table.th [] [ Html.text "Operations" ]
@@ -160,9 +177,22 @@ view _ model =
             Html.div [] [ Html.text "No data" ]
 
 
+globalOperations : Model -> Html.Html Msg
+globalOperations model =
+    Html.div []
+        [Html.text "Operations "
+        , Html.button [ Attributes.disabled (model.selectedTracks == Nothing), Attributes.class "button", Events.onClick ShowMultipleTracks ] [ Icons.eye ]
+        , Html.button [ Attributes.disabled True, Attributes.class "button" ] [ Icons.delete ]
+        ]
+
+
 operations : Types.Track -> Html.Html Msg
 operations track =
-    Button.button [ Button.primary, Button.small, Button.onClick (NavigateTo (Helpers.TrackId track.id)) ] [ Html.text "Show" ]
+    Html.div []
+        [ Html.button [ Attributes.class "button", Events.onClick (NavigateTo (Helpers.TrackId track.id)) ] [ Icons.eye ]
+        , Html.button [ Attributes.disabled True, Attributes.class "button" ] [ Icons.edit2 ]
+        , Html.button [ Attributes.disabled True, Attributes.class "button" ] [ Icons.delete ]
+        ]
 
 
 checkbox : Types.Track -> Bool -> Html.Html Msg
