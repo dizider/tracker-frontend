@@ -6,8 +6,7 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Bootstrap.Navbar as Navbar
-import Bootstrap.Pagination exposing (itemsList)
-import Bootstrap.Utilities.Flex as UtilsFlex
+import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Utilities.Spacing as Spacing
 import Browser
 import Browser.Navigation exposing (Key)
@@ -25,7 +24,6 @@ import Routing.Helpers as Helpers exposing (..)
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Url)
-import Url.Parser as Parser exposing (..)
 
 
 type Msg
@@ -398,56 +396,35 @@ pageView sharedState model =
     template (Html.div [] []) <|
         case model.route of
             HomePage ->
-                Grid.col [ Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Home.view sharedState model.homeModel
                         |> Html.Styled.toUnstyled
                         |> Html.map HomeMsg
                     ]
 
             Tracks ->
-                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Tracks.view sharedState model.tracksListModel
                         -- |> Html.Styled.toUnstyled
                         |> Html.map TracksMsg
                     ]
 
             Trackers ->
-                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Trackers.view model.trackersModel
                         -- |> Html.Styled.toUnstyled
                         |> Html.map TrackersMsg
                     ]
 
             AuthPage ->
-                Grid.col [ Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
-                    [ case model.authModel.flow of
-                        Types.Done userInfo ->
-                            div []
-                                [ text "User details: "
-                                , ul []
-                                    [ li [] [ text "email: ", text userInfo.email ]
-                                    , li [] [ text "name: ", text userInfo.name ]
-                                    ]
-                                ]
-
-                        Types.Idle ->
-                            Auth.viewIdle
-                                |> Html.Styled.toUnstyled
-                                |> Html.map AuthMsg
-
-                        Types.Authorized _ ->
-                            Auth.viewAuthorized
-                                |> Html.Styled.toUnstyled
-                                |> Html.map AuthMsg
-
-                        Types.Errored err ->
-                            Html.Styled.div [] (Auth.viewErrored err :: Auth.form)
-                                |> Html.Styled.toUnstyled
-                                |> Html.map AuthMsg
+                Grid.col [ Col.lg12, Col.attrs [ Flex.block, Spacing.p0, Flex.alignSelfCenter, Flex.justifyCenter ] ]
+                    [ Auth.view model.authModel
+                        |> Html.Styled.toUnstyled
+                        |> Html.map AuthMsg
                     ]
 
             MapPage mtrack ->
-                Grid.col [ Col.attrs [ Spacing.p0, UtilsFlex.alignSelfCenter ] ]
+                Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Map.view sharedState model.mapModel
                         |> Html.Styled.toUnstyled
                         |> Html.map MapMsg
@@ -463,7 +440,7 @@ pageView sharedState model =
 template : Html msg -> Grid.Column msg -> Html msg
 template left content =
     Grid.containerFluid []
-        [ Grid.row [ Row.attrs [ UtilsFlex.row, UtilsFlex.justifyCenter ] ]
+        [ Grid.row [ Row.attrs [ Flex.block, Flex.justifyCenter ] ]
             [ -- Grid.col [ Col.lg2, Col.attrs [ UtilsFlex.alignSelfEnd ] ] [ left ]
               content
 
