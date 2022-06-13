@@ -1,4 +1,4 @@
-module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, update, viewAuthorized, viewErrored, viewIdle)
+module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, update, view)
 
 import Browser.Navigation as Navigation exposing (Key, pushUrl)
 import Config as Config
@@ -260,18 +260,28 @@ oauthErrorToString { error, errorDescription } =
 view : Model -> Html Msg
 view model =
     case model.flow of
-        Types.Errored err ->
-            viewErrored err
+        Types.Done userInfo ->
+            div []
+                [ text "User details: "
+                , ul []
+                    [ li [] [ text "email: ", text userInfo.email ]
+                    , li [] [ text "name: ", text userInfo.name ]
+                    ]
+                ]
 
-        -- Types.Done userInfo ->
-        -- view
-        _ ->
+        Types.Idle ->
             viewIdle
+
+        Types.Authorized _ ->
+            viewAuthorized
+
+        Types.Errored err ->
+            div [] [ viewErrored err, form ]
 
 
 viewIdle : Html Msg
 viewIdle =
-    div [] form
+    form
 
 
 viewAuthorized : Html Msg
@@ -295,7 +305,7 @@ viewError e =
                 oauthErrorToString { error = error.error, errorDescription = error.errorDescription }
 
             Types.ErrHTTPGetUserInfo ->
-                "Unable to retrieve user info: HTTP request failed."
+                "Unable to retrieve user info. Expired OAuth token."
 
 
 noOp : Model -> ( Model, Cmd Msg )
@@ -336,16 +346,15 @@ authorizedMsg msg model =
             Err "Not authorized"
 
 
-form : List (Html Msg)
+form : Html Msg
 form =
-    [ div []
-        [ 
-            -- div [ class "background" ]
-            --[ div [ class "shape" ] []
-             -- , div [ class "shape" ] []
-            -- ]
-        -- , 
-        div [ class "login-form" ]
+    div []
+        [ -- div [ class "background" ]
+          --[ div [ class "shape" ] []
+          -- , div [ class "shape" ] []
+          -- ]
+          -- ,
+          div [ class "login-form" ]
             [ div [ class "label" ]
                 [ h3 [] [ text (Config.translates "login-label") ]
                 ]
@@ -357,4 +366,3 @@ form =
                 ]
             ]
         ]
-    ]

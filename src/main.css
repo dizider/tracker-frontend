@@ -83,10 +83,10 @@ div#map {
   height: 520px;
   width: 400px;
   background-color: rgba(39, 39, 39, 0.267);
-  position: absolute;
+  /* position: absolute; */
   /*transform: translate(-50%,-50%);*/
-  top: 50%;
-  left: 50%;
+  /* top: 50%;
+  left: 50%; */
   border-radius: 10px;
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 255, 255, 0.1);
