@@ -6,7 +6,7 @@ import Css exposing (..)
 import Decoders as Decoders
 import Dict as Dict
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (id)
+import Html.Styled.Attributes exposing (id, css)
 import Html.Styled.Events exposing (..)
 import Json.Decode exposing (Decoder)
 import Pages.Partials.MapView as MapView
@@ -17,10 +17,9 @@ import Routing.Helpers as Helpers exposing (Route(..), routeToString)
 import SharedState as SharedState
 import Types as Types exposing (Coordinates)
 
-
 type alias Model =
     { coordinates : WebData (Dict.Dict String Coordinates)
-    , map : MapView.Model
+    , map : MapView.Model Msg
     }
 
 
@@ -51,10 +50,25 @@ fetchInitalCoordinates =
         Decoders.decodeCoordinatesAsDict
 
 
+trackSelection : Html Msg
+trackSelection =
+    button
+        [ id "center"
+        , css
+            [ backgroundImage (url "drop.svg")
+            , backgroundRepeat noRepeat
+            , backgroundSize (px 25)
+            , width (px 25)
+            , height (px 25)
+            , backgroundPosition center
+            ]
+        ]
+        []
+
 view : SharedState.SharedState -> Model -> Html Msg
 view sharedState model =
     div []
-        [ MapView.mapView MapViewMsg []
+        [ MapView.mapView MapViewMsg model.map [trackSelection]
 
         -- [ button [ id "back", NavigateTo Helpers.Tracks |> onClick ] [ text "List of tracks" ]
         -- ]

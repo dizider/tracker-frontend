@@ -1,6 +1,7 @@
-module Pages.Partials.MapView exposing (Model, Msg, mapView, update, initModel)
+module Pages.Partials.MapView exposing (Model, Msg, initModel, mapView, update)
 
 import Css exposing (..)
+import Html as Html
 import Html.Styled as SHtml exposing (button, div, node)
 import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (onClick)
@@ -12,40 +13,45 @@ type Msg
     | NoOp
 
 
-type Model
-    = Fullscreen
-    | Normal
+type alias Model msg =
+    { additionalButtons : List (SHtml.Html msg)
+    }
 
-initModel : Model
-initModel = Normal
 
-update : Msg -> Model -> ( Model, Cmd msg )
+initModel : Model msg
+initModel =
+    { additionalButtons = []
+    }
+
+
+addButton : SHtml.Html msg -> Model msg -> Model msg
+addButton button model =
+    { model | additionalButtons = button :: model.additionalButtons }
+
+
+update : Msg -> Model msg -> ( Model msg, Cmd msg )
 update msg model =
-    case ( msg, model ) of
-        ( ToggleFullscreen, Normal ) ->
-            ( Fullscreen, Ports.fullscreenMap True )
+    case msg of
+        ToggleFullscreen ->
+            ( model, Ports.fullscreenMap () )
 
-        ( ToggleFullscreen, Fullscreen ) ->
-            ( Normal, Ports.fullscreenMap False )
-
-        ( NoOp, _ ) ->
+        NoOp ->
             ( model, Cmd.none )
 
 
-mapView : (Msg -> msg) -> List (SHtml.Html Msg) -> SHtml.Html msg
-mapView wrapper att =
-    SHtml.map wrapper <|
-        node "seznam-maps"
-            [ id "maps" ]
-            [ div
-                [ id "map"
-                , css
-                    [ height (vh 100)
-                    , width (vw 100)
-                    ]
+mapView : (Msg -> msg) -> Model msg -> List (SHtml.Html msg) -> SHtml.Html msg
+mapView wrapper model att =
+    node "seznam-maps"
+        [ id "maps" ]
+        [ div
+            [ id "map"
+            , css
+                [ height (vh 100)
+                , width (vw 100)
                 ]
-                (fullscreenButton :: att)
             ]
+            (List.append (SHtml.map wrapper fullscreenButton :: att) model.additionalButtons)
+        ]
 
 
 fullscreenButton : SHtml.Html Msg

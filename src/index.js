@@ -2,51 +2,52 @@ import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import './helpers'
-
-var script = document.createElement('script');
-script.setAttribute('type', 'text/javascript');
-script.setAttribute('src', 'https://api.mapy.cz/loader.js');
-document.head.appendChild(script);
+import './mapLoader'
+// var script = document.createElement('script');
+// script.setAttribute('type', 'text/javascript');
+// script.setAttribute('src', 'https://api.mapy.cz/loader.js');
+// document.head.appendChild(script);
 
 var meta = document.createElement('meta');
 meta.setAttribute('name', 'viewport')
 meta.setAttribute('content', 'width=device-width,user-scalable=0,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover')
 document.head.appendChild(meta);
 
-script.onload = initApp;
-
 
 const rootNode = document.getElementById('root')
 
 let app
 let map
-let lineColor = "#f00"
 let lastPosMarkerCard
 let markersLayer
 let liveMarkers = {} // last positions of all live tracks
 
 let rootUrl = "***REMOVED***" //window.location.host
+let winUrl = "http://" + window.location.host
 let wsUrl = "wss://" + rootUrl + "/subscribe";
 let wsSocket
 
 console.log(wsUrl)
 
+initApp()
+
 function makeMarker(lat, lon, title, text, img) {
     lastPosMarkerCard = new SMap.Card()
-    lastPosMarkerCard.getHeader().innerHTML = "<strong>" + text + "</strong>"
-    lastPosMarkerCard.getBody().innerHTML = ""
+    lastPosMarkerCard.getHeader().innerHTML = "<strong>" + title + "</strong>"
+    lastPosMarkerCard.getBody().innerHTML = text
 
     let markerContent = JAK.mel("div")
-    let pic = JAK.mel("img", { src: img })
+    let pic = JAK.mel("img", { src: img }, { "height": "30px" })
     markerContent.appendChild(pic)
 
     let markerTitle = JAK.mel("div", {}, {
         position: "absolute",
         left: "0px",
-        top: "2px",
+        top: "0px",
         textAlign: "center",
         width: "22px",
         color: "white",
+        textShadow: "-1px 0 black, 0 1px black, 1px 0 black, 0 -1px black",
         fontWeight: "bold"
     })
     markerTitle.innerHTML = title
@@ -78,6 +79,8 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 function initApp() {
+    Loader.load()
+
     app = Elm.Main.init({
         node: rootNode,
         flags: {
@@ -121,11 +124,15 @@ function initApp() {
         let pts = xmlDoc.getElementsByTagName("trkpt")
         let lastPoint = pts[pts.length - 1];
         if (lastPoint != undefined) {
+            let lineColor = "#" + Math.floor(Math.random() * 16777215).toString(16);
+
             let center = SMap.Coords.fromWGS84(lastPoint.getAttribute("lon"), lastPoint.getAttribute("lat"))
             map.setCenter(center)
-            let img = SMap.CONFIG.img + "/marker/drop-red.png"
+
+            let img = winUrl + "/drop.svg"
+            console.log(img)
             let desc = "Track id: " + trackId + "</br> time: " + lastPoint.getElementsByTagName("time")[0].innerHTML + "</br> battery: " + lastPoint.getAttribute("batt")
-            let marker = makeMarker(lastPoint.getAttribute("lat"), lastPoint.getAttribute("lon"), "", desc, img)
+            let marker = makeMarker(lastPoint.getAttribute("lat"), lastPoint.getAttribute("lon"), trackId, desc, img)
             markersLayer.addMarker(marker)
             // pass the rest to draw the line
             let gpx = new SMap.Layer.GPX(xmlDoc, null, { maxPoints: 5000, colors: [lineColor] })
@@ -148,8 +155,8 @@ function initApp() {
         }
     });
 
-    app.ports.fullscreenMap.subscribe(fullscreen => {
-        if (fullscreen)
+    app.ports.fullscreenMap.subscribe(_ => {
+        if (document.fullscreenElement === null)
             document.getElementById("maps").requestFullscreen();
         else
             document.exitFullscreen();
@@ -178,12 +185,6 @@ customElements.define('seznam-maps', class extends HTMLElement {
 
     connectedCallback() {
         console.log("Map is loading");
-        // this._screen = document.createElement('div');
-        // this._screen.setAttribute("id", "map");
-        // this._screen.style.height = this.getAttribute('height');
-        // this._screen.style.width = this.getAttribute('width');
-        // this.appendChild(this._screen);
-
         this.loadMap()
     }
 

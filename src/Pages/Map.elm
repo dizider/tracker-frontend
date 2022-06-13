@@ -17,7 +17,7 @@ import Types exposing (Track)
 type alias Model =
     { tracks : List Track
     , tracksGpx : Dict Int (RD.WebData String)
-    , map : MapView.Model
+    , map : MapView.Model Msg
     }
 
 
@@ -76,7 +76,7 @@ update wrapper msg model =
 
 
 view : SharedState.SharedState -> Model -> Html Msg
-view _ _ =
+view _ model =
     div []
-        [ MapView.mapView MapViewMsg []
+        [ MapView.mapView MapViewMsg model.map []
         ]
