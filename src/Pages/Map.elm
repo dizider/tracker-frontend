@@ -6,12 +6,14 @@ import Dict exposing (Dict)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (id)
 import Html.Styled.Events exposing (..)
+import Pages.Partials.LoadingView as Loading
 import Pages.Partials.MapView as MapView
 import Ports as Ports
 import RemoteData as RD
 import Routing.Helpers as Helpers
 import SharedState
 import Types exposing (Track)
+import Html.Styled.Attributes exposing (css)
 
 
 type alias Model =
@@ -111,8 +113,7 @@ loadingStatus model =
 view : SharedState.SharedState -> Model -> Html Msg
 view _ model =
     if model.isLoading then
-        div [] [ text "Loading" ]
-
+         Loading.view |> fromUnstyled
     else
         div []
             [ MapView.mapView MapViewMsg model.map []

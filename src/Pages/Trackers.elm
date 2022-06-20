@@ -5,7 +5,7 @@ import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
 import Bootstrap.Modal as Modal
-import Bootstrap.Spinner as Spinner
+import Pages.Partials.LoadingView as Loading
 import Bootstrap.Table as Table
 import Decoders as Decoders
 import Html as Html
@@ -96,7 +96,7 @@ view model =
                 ]
 
         RD.Loading ->
-            Spinner.spinner [ Spinner.grow, Spinner.large ] [ Spinner.srMessage "Loading..." ]
+            Loading.view
 
         _ ->
             Html.div [] [ Html.text "No data" ]

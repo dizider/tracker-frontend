@@ -4,7 +4,7 @@ import Api as Api
 import Bootstrap.Form.Checkbox as Checkbox
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
-import Bootstrap.Spinner as Spinner
+import Pages.Partials.LoadingView as Loading
 import Bootstrap.Table as Table
 import Decoders as Decoders
 import Delay exposing (TimeUnit(..))
@@ -128,7 +128,7 @@ view model =
                 ]
 
         RD.Loading ->
-            Spinner.spinner [ Spinner.grow, Spinner.large ] [ Spinner.srMessage "Loading..." ]
+            Loading.view
 
         _ ->
             Html.div [] [ Html.text "No data" ]

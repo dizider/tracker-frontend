@@ -5,7 +5,7 @@ import Bootstrap.Button as Button
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Select as Select
-import Bootstrap.Spinner as Spinner
+import Pages.Partials.LoadingView as Loading
 import Bootstrap.Utilities.Flex as Flex
 import Decoders
 import Html as Html
@@ -138,7 +138,7 @@ existingTrackTab model =
                 ]
 
         RD.Loading ->
-            Spinner.spinner [ Spinner.grow, Spinner.large ] [ Spinner.srMessage "Loading..." ]
+            Loading.view
 
         _ ->
             Html.div [] [ Html.text "No existing tracks" ]
