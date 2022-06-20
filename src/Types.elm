@@ -58,6 +58,7 @@ type alias Track =
 type alias Tracker =
     { id : Int
     , name : String
+    , track: Track
     }
 
 

@@ -11,6 +11,7 @@ import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Utilities.Spacing as Spacing
 import Browser
 import Browser.Navigation exposing (Key)
+import Css exposing (Display)
 import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes as Attributes exposing (href)
@@ -25,7 +26,6 @@ import Routing.Helpers as Helpers exposing (..)
 import SharedState as SharedState exposing (SharedStateUpdate)
 import Types as Types
 import Url exposing (Url)
-import Css exposing (Display)
 
 
 type Msg
@@ -124,8 +124,12 @@ authUpdateProxy sharedState msg model =
             updateAuth sharedState model amsg
 
         ChangedUrl location ->
-            ( { model | route = parseUrl location, url = location }
-            , updatePage location
+            let
+                ( newModel, newMsg ) =
+                    loadPage location model
+            in
+            ( { newModel | route = parseUrl location, url = location }
+            , newMsg
             , SharedState.NoUpdate
             )
 
@@ -140,8 +144,12 @@ authUpdateProxy sharedState msg model =
                 MapPage mtrackId ->
                     case mtrackId of
                         Just ids ->
-                            ( model
-                            , Cmd.batch [ Cmd.map MapMsg (Map.fetchData ids), Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
+                            let
+                                ( updateMapModel, mapMsg ) =
+                                    Map.fetchData ids model.mapModel
+                            in
+                            ( { model | mapModel = updateMapModel }
+                            , Cmd.batch [ Cmd.map MapMsg mapMsg, Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
                             , SharedState.NoUpdate
                             )
 
@@ -237,34 +245,38 @@ update sharedState msg model =
             authUpdateProxy sharedState AccessDenied model
 
 
-updatePage : Url -> Cmd Msg
-updatePage url =
+loadPage : Url -> Model -> ( Model, Cmd Msg )
+loadPage url model =
     case parseUrl url of
         MapPage mtrackId ->
             case mtrackId of
                 Just ids ->
-                    Cmd.map MapMsg (Map.fetchData ids)
+                    let
+                        ( newModel, newMsg ) =
+                            Map.fetchData ids model.mapModel
+                    in
+                    ( { model | mapModel = newModel }, Cmd.map MapMsg newMsg )
 
                 Nothing ->
-                    Cmd.none
+                    ( model, Cmd.none )
 
         NotFound ->
-            Cmd.none
+            ( model, Cmd.none )
 
         Tracks ->
-            Cmd.map TracksMsg Tracks.fetchData
+            ( model, Cmd.map TracksMsg Tracks.fetchData )
 
         Trackers ->
-            Cmd.map TrackersMsg Trackers.fetchData
+            ( model, Cmd.map TrackersMsg Trackers.fetchData )
 
         HomePage ->
-            Cmd.none
+            ( model, Home.load )
 
         AuthPage ->
-            Cmd.none
+            ( model, Cmd.none )
 
         AccessDeniedPage ->
-            Cmd.none
+            ( model, Cmd.none )
 
 
 updateAuth : SharedState.SharedState -> Model -> Auth.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
@@ -365,7 +377,7 @@ view msgMapper sharedState model =
     { title = title ++ " - Tracker"
     , body =
         [ Grid.container []
-            [ CDN.stylesheet]
+            [ CDN.stylesheet ]
         , body
             |> Html.map msgMapper
         ]

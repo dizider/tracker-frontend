@@ -20,8 +20,8 @@ window.markersLayer = null
 window.rootUrl = "***REMOVED***" //window.location.host
 window.winUrl = "http://" + window.location.host
 window.wsUrl = "wss://" + rootUrl + "/subscribe";
-
 window.wsSocket = null
+window.tracks = []
 
 console.log(wsUrl)
 
@@ -32,7 +32,7 @@ function initApp() {
     app = Elm.Main.init({
         node: rootNode,
         flags: {
-            clientId: process.env.CLIENT_ID,
+            clientId: "***REMOVED***",
             state: rememberedBytes(),
             token: persistedToken()
         }
@@ -54,7 +54,7 @@ function initApp() {
     });
 
     app.ports.addTrack.subscribe(track => {
-        maps.addTrack(track)
+        tracks.push(track)
     });
 
     app.ports.updateCoordinates.subscribe(coords => {
@@ -75,6 +75,11 @@ function initApp() {
 
     app.ports.unsubscribeCoordinates.subscribe(trackId => {
         wsSocket.send("coordinates/" + trackId);
+    });
+
+    app.ports.loadMap.subscribe(_ => {
+        if(maps !== undefined)
+            maps.loadMap()
     });
 
     document.addEventListener("fullscreenchange", () => {

@@ -18,6 +18,7 @@ type alias Model =
     { tracks : List Track
     , tracksGpx : Dict Int (RD.WebData String)
     , map : MapView.Model Msg
+    , isLoading : Bool
     }
 
 
@@ -30,21 +31,31 @@ type Msg
 
 init : List Track -> ( Model, Cmd Msg )
 init tracks =
-    ( { tracks = tracks
-      , map = MapView.initModel
-      , tracksGpx = Dict.empty
-      }
-    , fetchData (List.map (\t -> Helpers.TrackId t.id) tracks)
+    let
+        emptyModel =
+            { tracks = tracks
+            , map = MapView.initModel
+            , tracksGpx = Dict.empty
+            , isLoading = True
+            }
+
+        ( initModel, initMsg ) =
+            fetchData (List.map (\t -> Helpers.TrackId t.id) tracks) emptyModel
+    in
+    ( initModel
+    , initMsg
     )
 
 
-fetchData : List Helpers.TrackId -> Cmd Msg
-fetchData tracks =
-    Cmd.batch
+fetchData : List Helpers.TrackId -> Model -> ( Model, Cmd Msg )
+fetchData tracks model =
+    ( { model | tracksGpx = Dict.fromList (List.map (\(Helpers.TrackId id) -> ( id, RD.Loading )) tracks), isLoading = True }
+    , Cmd.batch
         (List.map
             (\track -> Api.fetchTrack (AddTrack track) track)
             tracks
         )
+    )
 
 
 update : (Msg -> msg) -> Msg -> Model -> SharedState.SharedState -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
@@ -54,13 +65,24 @@ update wrapper msg model sharedState =
             AddTrack (Helpers.TrackId id) result ->
                 case result of
                     RD.Success trackGpx ->
-                        ( { model | tracksGpx = Dict.insert id result model.tracksGpx }, Ports.addTrack ( id, trackGpx ), SharedState.NoUpdate )
+                        let
+                            updatedTracksGpx =
+                                Dict.insert id result model.tracksGpx
+                        in
+                        ( { model | tracksGpx = updatedTracksGpx, isLoading = loadingStatus updatedTracksGpx }, Ports.addTrack ( id, trackGpx ), SharedState.NoUpdate )
+
+                    RD.Failure _ ->
+                        let
+                            updatedTracksGpx =
+                                Dict.remove id model.tracksGpx
+                        in
+                        ( { model | tracksGpx = updatedTracksGpx, isLoading = loadingStatus updatedTracksGpx }, Cmd.none, SharedState.NoUpdate )
 
                     _ ->
                         ( model, Cmd.none, SharedState.NoUpdate )
 
             RemoveTrack id ->
-                ( model, Ports.removeTrack id, SharedState.NoUpdate )
+                ( { model | tracksGpx = Dict.remove id model.tracksGpx }, Ports.removeTrack id, SharedState.NoUpdate )
 
             MapViewMsg mapMsg ->
                 let
@@ -76,8 +98,22 @@ update wrapper msg model sharedState =
                 ( model, Cmd.none, SharedState.NoUpdate )
 
 
+loadingStatus : Dict Int (RD.WebData String) -> Bool
+loadingStatus model =
+    case RD.fromList (Dict.values model) of
+        RD.Success _ ->
+            False
+
+        _ ->
+            True
+
+
 view : SharedState.SharedState -> Model -> Html Msg
 view _ model =
-    div []
-        [ MapView.mapView MapViewMsg model.map []
-        ]
+    if model.isLoading then
+        div [] [ text "Loading" ]
+
+    else
+        div []
+            [ MapView.mapView MapViewMsg model.map []
+            ]

@@ -1,4 +1,4 @@
-module Pages.Home exposing (Model, Msg(..), initModel, update, view)
+module Pages.Home exposing (Model, Msg(..), initModel, update, view, load)
 
 import Api as Api exposing (fetchActiveTrackers)
 import Bootstrap.Button as Button
@@ -24,6 +24,7 @@ import RemoteData.Http as Http
 import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
 import Types as Types exposing (Coordinates)
+import Pages.Partials.MapView exposing (mapView)
 
 
 type alias Model =
@@ -53,6 +54,9 @@ initModel =
     , trackSelection = TrackSelection.initModel
     }
 
+
+load : Cmd msg
+load = MapView.load
 
 mapViewWithButtons : MapView.Model Msg -> SharedState.SharedState -> MapView.Model Msg
 mapViewWithButtons model sharedState =

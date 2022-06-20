@@ -8,7 +8,7 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
 
     connectedCallback() {
         console.log("Map is loading");
-        maps = this
+        maps = this 
         this.loadMap()
     }
 
@@ -63,6 +63,14 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
 
             app.ports.newCoordinatesReceived.send(event.data);
         });
+
+        maps.showTracks()
+    }
+
+    showTracks() {
+        for(let i = 0; i < tracks.length; i++){
+            this.addTrack(tracks[i])
+        }
     }
 
     addTrack(track) {

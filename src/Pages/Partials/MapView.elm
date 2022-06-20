@@ -1,4 +1,4 @@
-module Pages.Partials.MapView exposing (Model, Msg, addButton, initModel, mapView, update)
+module Pages.Partials.MapView exposing (Model, Msg, addButton, initModel, mapView, update, load)
 
 import Css exposing (..)
 import Html.Styled as SHtml exposing (button, div, fromUnstyled, node)
@@ -25,6 +25,9 @@ initModel =
     }
 
 
+load : Cmd msg
+load = Ports.loadMap ()
+
 addButton : (List (SHtml.Attribute msg) -> SHtml.Html msg) -> Model msg -> Model msg
 addButton btn model =
     let
@@ -49,14 +52,14 @@ addButton btn model =
     { model | additionalButtons = styledButton :: model.additionalButtons }
 
 
-update : Msg -> Model msg -> ( Model msg, Cmd msg )
-update msg model =
+update : Msg -> Model msg -> SharedState.SharedState -> ( Model msg, Cmd msg, SharedState.SharedStateUpdate )
+update msg model _ =
     case msg of
         ToggleFullscreen ->
-            ( model, Ports.fullscreenMap () )
+            ( model, Ports.fullscreenMap (), SharedState.NoUpdate )
 
         NoOp ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, SharedState.NoUpdate )
 
 
 mapView : (Msg -> msg) -> Model msg -> List (SHtml.Html msg) -> SHtml.Html msg
