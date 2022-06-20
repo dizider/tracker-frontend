@@ -1,13 +1,12 @@
 module Pages.Tracks exposing (..)
 
 import Api as Api
-import Bootstrap.Button as Button
 import Bootstrap.Form.Checkbox as Checkbox
 import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Bootstrap.Spinner as Spinner
 import Bootstrap.Table as Table
-import Bootstrap.Utilities.Flex
 import Browser.Navigation exposing (pushUrl)
 import Decoders as Decoders
 import Dict as Dict
@@ -15,7 +14,6 @@ import Html as Html
 import Html.Attributes as Attributes
 import Html.Events as Events
 import Icons as Icons
-import Json.Decode exposing (Decoder)
 import RemoteData as RD
 import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
@@ -154,20 +152,24 @@ view _ model =
                         data
             in
             Html.div []
-                [ Grid.row [ Row.attrs [ Attributes.class "sticky-top" ] ] [ Grid.col [] [ globalOperations model ] ]
-                , Table.table
-                    { options = [ Table.striped, Table.responsive, Table.hover ]
-                    , thead =
-                        Table.simpleThead
-                            [ Table.th []
-                                [ Checkbox.custom [ Checkbox.id "all", Checkbox.checked model.isAllSelected, Checkbox.onCheck SelectAllToggle ] ""
-                                ]
-                            , Table.th [] [ Html.text "ID" ]
-                            , Table.th [] [ Html.text "Name" ]
-                            , Table.th [] [ Html.text "Operations" ]
-                            ]
-                    , tbody = Table.tbody [] rows
-                    }
+                [ globalOperations model
+                , Grid.row []
+                    [ Grid.col []
+                        [ Table.table
+                            { options = [ Table.striped, Table.responsive, Table.hover ]
+                            , thead =
+                                Table.simpleThead
+                                    [ Table.th []
+                                        [ Checkbox.custom [ Checkbox.id "all", Checkbox.checked model.isAllSelected, Checkbox.onCheck SelectAllToggle ] ""
+                                        ]
+                                    , Table.th [] [ Html.text "ID" ]
+                                    , Table.th [] [ Html.text "Name" ]
+                                    , Table.th [] [ Html.text "Operations" ]
+                                    ]
+                            , tbody = Table.tbody [] rows
+                            }
+                        ]
+                    ]
                 ]
 
         RD.Loading ->
@@ -179,10 +181,12 @@ view _ model =
 
 globalOperations : Model -> Html.Html Msg
 globalOperations model =
-    Html.div []
-        [Html.text "Operations "
-        , Html.button [ Attributes.disabled (model.selectedTracks == Nothing), Attributes.class "button", Events.onClick ShowMultipleTracks ] [ Icons.eye ]
-        , Html.button [ Attributes.disabled True, Attributes.class "button" ] [ Icons.delete ]
+    Grid.row [ Row.attrs [ Attributes.class "sticky-top" ], Row.aroundLg ]
+        [ Grid.col [ Col.attrs [ Attributes.style "background-color" "#f2f2f2" ] ]
+            [ Html.text "Operations "
+            , Html.button [ Attributes.disabled (model.selectedTracks == Nothing), Attributes.class "button", Events.onClick ShowMultipleTracks ] [ Icons.eye ]
+            , Html.button [ Attributes.disabled True, Attributes.class "button" ] [ Icons.delete ]
+            ]
         ]
 
 
