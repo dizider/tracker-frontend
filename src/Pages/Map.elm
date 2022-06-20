@@ -10,7 +10,7 @@ import Pages.Partials.MapView as MapView
 import Ports as Ports
 import RemoteData as RD
 import Routing.Helpers as Helpers
-import SharedState as SharedState
+import SharedState
 import Types exposing (Track)
 
 
@@ -47,32 +47,33 @@ fetchData tracks =
         )
 
 
-update : (Msg -> msg) -> Msg -> Model -> ( Model, Cmd msg )
-update wrapper msg model =
-    (\( m, ms ) -> ( m, Cmd.map wrapper ms )) <|
+update : (Msg -> msg) -> Msg -> Model -> SharedState.SharedState -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
+update wrapper msg model sharedState =
+    (\( m, ms, s ) -> ( m, Cmd.map wrapper ms, s )) <|
         case msg of
             AddTrack (Helpers.TrackId id) result ->
                 case result of
                     RD.Success trackGpx ->
-                        ( { model | tracksGpx = Dict.insert id result model.tracksGpx }, Ports.addTrack ( id, trackGpx ) )
+                        ( { model | tracksGpx = Dict.insert id result model.tracksGpx }, Ports.addTrack ( id, trackGpx ), SharedState.NoUpdate )
 
                     _ ->
-                        ( model, Cmd.none )
+                        ( model, Cmd.none, SharedState.NoUpdate )
 
             RemoveTrack id ->
-                ( model, Ports.removeTrack id )
+                ( model, Ports.removeTrack id, SharedState.NoUpdate )
 
             MapViewMsg mapMsg ->
                 let
-                    ( mapViewModel, mapViewMsg ) =
-                        MapView.update mapMsg model.map
+                    ( mapViewModel, mapViewMsg, sharedStateUpdate ) =
+                        MapView.update mapMsg model.map sharedState
                 in
                 ( { model | map = mapViewModel }
                 , mapViewMsg
+                , sharedStateUpdate
                 )
 
             NoOp ->
-                ( model, Cmd.none )
+                ( model, Cmd.none, SharedState.NoUpdate )
 
 
 view : SharedState.SharedState -> Model -> Html Msg

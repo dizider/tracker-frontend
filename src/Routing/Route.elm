@@ -1,6 +1,7 @@
 module Routing.Route exposing (Model, Msg(..), init, routeNewCoordinates, update, view)
 
 import Auth
+import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
@@ -21,9 +22,10 @@ import Pages.Map as Map
 import Pages.Trackers as Trackers
 import Pages.Tracks as Tracks
 import Routing.Helpers as Helpers exposing (..)
-import SharedState as SharedState
+import SharedState as SharedState exposing (SharedStateUpdate)
 import Types as Types
 import Url exposing (Url)
+import Css exposing (Display)
 
 
 type Msg
@@ -316,12 +318,12 @@ updateHome sharedState model homeMsg =
 updateMap : SharedState.SharedState -> Model -> Map.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateMap sharedState model mapMsg =
     let
-        ( newModel, mapCmd ) =
-            Map.update MapMsg mapMsg model.mapModel
+        ( newModel, mapCmd, sharedStateUpdate ) =
+            Map.update MapMsg mapMsg model.mapModel sharedState
     in
     ( { model | mapModel = newModel }
     , mapCmd
-    , SharedState.NoUpdate
+    , sharedStateUpdate
     )
 
 
@@ -410,21 +412,18 @@ pageView sharedState model =
             HomePage ->
                 Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Home.view sharedState model.homeModel
-                        |> Html.Styled.toUnstyled
                         |> Html.map HomeMsg
                     ]
 
             Tracks ->
-                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
+                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.py5, Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Tracks.view sharedState model.tracksListModel
-                        -- |> Html.Styled.toUnstyled
                         |> Html.map TracksMsg
                     ]
 
             Trackers ->
-                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
+                Grid.col [ Col.lg8, Col.sm12, Col.attrs [ Spacing.py5, Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Trackers.view model.trackersModel
-                        -- |> Html.Styled.toUnstyled
                         |> Html.map TrackersMsg
                     ]
 
@@ -435,7 +434,7 @@ pageView sharedState model =
                         |> Html.map AuthMsg
                     ]
 
-            MapPage mtrack ->
+            MapPage _ ->
                 Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
                     [ Map.view sharedState model.mapModel
                         |> Html.Styled.toUnstyled
