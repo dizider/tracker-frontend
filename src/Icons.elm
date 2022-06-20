@@ -1,9 +1,9 @@
-module Icons
-    exposing
-        ( delete
-        , edit2
-        , eye
-        )
+module Icons exposing
+    ( delete
+    , edit2
+    , eye
+    , maximize
+    )
 
 import Html exposing (Html)
 import Svg exposing (Svg, svg)
@@ -46,4 +46,11 @@ eye =
     svgFeatherIcon "eye"
         [ Svg.path [ d "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" ] []
         , Svg.circle [ cx "12", cy "12", r "3" ] []
+        ]
+
+
+maximize : Html msg
+maximize =
+    svgFeatherIcon "maximize"
+        [ Svg.path [ d "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" ] []
         ]

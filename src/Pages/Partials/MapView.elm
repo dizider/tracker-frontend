@@ -1,11 +1,12 @@
-module Pages.Partials.MapView exposing (Model, Msg, initModel, mapView, update)
+module Pages.Partials.MapView exposing (Model, Msg, addButton, initModel, mapView, update)
 
 import Css exposing (..)
-import Html as Html
-import Html.Styled as SHtml exposing (button, div, node)
+import Html.Styled as SHtml exposing (button, div, fromUnstyled, node)
 import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (onClick)
+import Icons
 import Ports as Ports
+import SharedState
 
 
 type Msg
@@ -24,9 +25,28 @@ initModel =
     }
 
 
-addButton : SHtml.Html msg -> Model msg -> Model msg
-addButton button model =
-    { model | additionalButtons = button :: model.additionalButtons }
+addButton : (List (SHtml.Attribute msg) -> SHtml.Html msg) -> Model msg -> Model msg
+addButton btn model =
+    let
+        styledButton =
+            btn
+                [ css
+                    [ position absolute
+                    , display block
+                    , padding3 (px 5) (px 8) (px 1)
+                    , border3 (px 1) solid (rgba 107 117 128 0.3)
+                    , borderRadius (px 2)
+                    , color (rgb 107 117 128)
+                    , backgroundColor (rgb 255 255 255)
+                    , fontSize (px 14)
+                    , textAlign right
+                    , textDecoration none
+                    , visibility visible
+                    , zIndex (int 2)
+                    ]
+                ]
+    in
+    { model | additionalButtons = styledButton :: model.additionalButtons }
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg )
@@ -50,22 +70,29 @@ mapView wrapper model att =
                 , width (vw 100)
                 ]
             ]
-            (List.append (SHtml.map wrapper fullscreenButton :: att) model.additionalButtons)
+            (List.append model.additionalButtons (SHtml.map wrapper fullscreenButton :: att))
         ]
 
 
 fullscreenButton : SHtml.Html Msg
 fullscreenButton =
     button
-        [ id "fullscreen"
-        , css
-            [ backgroundImage (url "fullscreen.png")
-            , backgroundRepeat noRepeat
-            , backgroundSize (px 25)
-            , width (px 25)
-            , height (px 25)
-            , backgroundPosition center
+        [ css
+            [ position absolute
+            , top (px 130)
+            , right (px 17)
+            , display block
+            , padding3 (px 5) (px 8) (px 1)
+            , border3 (px 1) solid (rgba 107 117 128 0.3)
+            , borderRadius (px 2)
+            , color (rgb 107 117 128)
+            , backgroundColor (rgb 255 255 255)
+            , fontSize (px 14)
+            , textAlign right
+            , textDecoration none
+            , visibility visible
+            , zIndex (int 2)
             ]
         , onClick ToggleFullscreen
         ]
-        []
+        [ Icons.maximize |> fromUnstyled, SHtml.text " Fullscreen" ]
