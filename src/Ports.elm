@@ -33,3 +33,7 @@ port newCoordinatesReceived : (String -> msg) -> Sub msg
 port updateCoordinates : List Coordinates -> Cmd msg
 
 port fullscreenMap : Bool -> Cmd msg
+
+port subscribeCoordinates : Int -> Cmd msg
+
+port unsubscribeCoordinates : Int -> Cmd msg
