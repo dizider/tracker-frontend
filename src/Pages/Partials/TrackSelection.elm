@@ -10,9 +10,10 @@ import Decoders as Decoders
 import Delay exposing (TimeUnit(..))
 import Dict as Dict
 import Html as Html
+import Html.Attributes as Attributes
 import RemoteData as RD
 import Types exposing (Track)
-
+import Bootstrap.Utilities.Size as Size
 
 type alias Model =
     { listOfTracks : RD.WebData (List Track)
@@ -112,7 +113,7 @@ view model =
                 [ Grid.row []
                     [ Grid.col [ Col.lg12 ]
                         [ Table.table
-                            { options = [ Table.striped, Table.responsive, Table.hover ]
+                            { options = [ Table.striped, Table.hover]
                             , thead =
                                 Table.simpleThead
                                     [ Table.th []

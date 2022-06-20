@@ -3,12 +3,14 @@ module Pages.Home exposing (Model, Msg(..), initModel, load, update, view)
 import Api
 import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Col as Col
 import Bootstrap.Modal as Modal
 import Browser.Navigation exposing (pushUrl)
 import Css exposing (..)
 import Decoders as Decoders
 import Dict as Dict
 import Html as Html
+import Html.Attributes as Attributes
 import Html.Events as Events
 import Html.Styled as SHtml exposing (..)
 import Html.Styled.Attributes as SAttributes exposing (css)
@@ -74,7 +76,6 @@ trackSelection sharedState attrs =
     button
         (List.append
             [ onClick ShowTracksModal
-            , SAttributes.hidden (sharedState.viewState == SharedState.Fullscreen)
             , css
                 [ top (px 165)
                 , right (px 17)
@@ -88,21 +89,21 @@ trackSelection sharedState attrs =
 view : SharedState.SharedState -> Model -> Html.Html Msg
 view sharedState model =
     Html.div []
-        [ modalView model
-        , MapView.mapView MapViewMsg (mapViewWithButtons model.map sharedState) [] |> SHtml.toUnstyled
+        [ 
+         MapView.mapView MapViewMsg (mapViewWithButtons model.map sharedState) [modalView model |> fromUnstyled] |> SHtml.toUnstyled
         ]
 
 
 modalView : Model -> Html.Html Msg
 modalView model =
     Modal.config HideTracksModal
-        |> Modal.small
+        |> Modal.large
         |> Modal.h5 [] [ Html.text "Select tracks for live view" ]
-        |> Modal.body []
-            [ Grid.containerFluid []
+        |> Modal.body [ Attributes.style "max-height" "50vh", Attributes.style "overflow" "auto"  ]
+            [ Grid.container []
                 [ Grid.row []
                     [ Grid.col
-                        []
+                        [ Col.attrs [] ]
                         [ Html.map TrackSelectionMsg (TrackSelection.view model.trackSelection) ]
                     ]
                 ]
