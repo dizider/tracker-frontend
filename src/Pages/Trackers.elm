@@ -12,7 +12,6 @@ import Html as Html
 import Html.Attributes as Attributes
 import Html.Events as Events
 import Http
-import Pages.Partials.Modal as Modal
 import Pages.Partials.PairingView as PairingView
 import RemoteData as RD
 import Routing.Helpers as Helpers
@@ -74,6 +73,7 @@ view model =
                             Table.tr []
                                 [ Table.td [] [ Html.text <| String.fromInt tracker.id ]
                                 , Table.td [] [ Html.text tracker.name ]
+                                , Table.td [] [ Html.text tracker.track.name ]
                                 , Table.td [] [ operations tracker ]
                                 ]
                         )
@@ -88,6 +88,7 @@ view model =
                         Table.simpleThead
                             [ Table.th [] [ Html.text "ID" ]
                             , Table.th [] [ Html.text "Name" ]
+                            , Table.th [] [ Html.text "Paired track" ]
                             , Table.th [] [ Html.text "Operations" ]
                             ]
                     , tbody = Table.tbody [] rows
@@ -111,7 +112,7 @@ update wrapper _ msg model =
                 , SharedState.NoUpdate
                 )
 
-            NavigateTo string ->
+            NavigateTo _ ->
                 ( model, Cmd.none, SharedState.NoUpdate )
 
             RequestPairing tracker ->
@@ -157,9 +158,9 @@ update wrapper _ msg model =
             PairingResult result ->
                 case result of
                     Ok response ->
-                        ( { model | pairingResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, Cmd.none, SharedState.NoUpdate )
+                        ( { model | pairingResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, fetchData, SharedState.NoUpdate )
 
-                    Err err ->
+                    Err _ ->
                         ( { model | pairingResult = Just (Err "Error while pairing tracker with track") }, Cmd.none, SharedState.NoUpdate )
 
             CreateAndPairResult result ->
@@ -167,7 +168,7 @@ update wrapper _ msg model =
                     Ok response ->
                         ( { model | createAndPairResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, Cmd.none, SharedState.NoUpdate )
 
-                    Err err ->
+                    Err _ ->
                         ( { model | createAndPairResult = Just (Err "Error while creating & pairing tracker with track") }, Cmd.none, SharedState.NoUpdate )
 
             PairingError ->

@@ -1,7 +1,7 @@
 module Decoders exposing (decodeCoordinates, decodeCoordinatesAsDict, decodeTrack, decodeTrackList, decodeTracker, decodeTrackerList)
 
 import Dict as Dict
-import Json.Decode exposing (Decoder, dict, float, int, string, succeed)
+import Json.Decode exposing (Decoder, dict, field, float, int, map3, string, succeed)
 import Json.Decode.Pipeline exposing (requiredAt)
 import Types exposing (Coordinates, Track, Tracker)
 
@@ -39,9 +39,11 @@ decodeCoordinatesAsDict =
 
 decodeTracker : Decoder Tracker
 decodeTracker =
-    succeed Tracker
-        |> requiredAt [ "id" ] int
-        |> requiredAt [ "name" ] string
+    map3
+        Tracker
+        (field "id" int)
+        (field "name" string)
+        (field "track" decodeTrack)
 
 
 decodeTrackerList : Decoder (List Tracker)
