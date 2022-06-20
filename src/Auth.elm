@@ -1,5 +1,8 @@
 module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, update, view)
 
+import Bootstrap.Alert as Alert
+import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Row as Row
 import Browser.Navigation as Navigation exposing (Key, pushUrl)
 import Config as Config
 import Delay exposing (TimeUnit(..), after)
@@ -11,6 +14,7 @@ import Http
 import Json.Decode as Json
 import OAuth
 import OAuth.Implicit as OAuth
+import Pages.Partials.UserDetails as UserDetails
 import Ports exposing (genRandomBytes, persistToken)
 import RemoteData.Http exposing (Config)
 import Routing.Helpers as Helpers exposing (parseUrl)
@@ -141,7 +145,7 @@ init sharedState origin navigationKey =
               , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
               }
             , Cmd.batch
-                [ Ports.removeToken True
+                [ Ports.removeToken ()
                 , clearUrl
                 ]
             )
@@ -232,7 +236,7 @@ gotUserInfo sharedState model userInfoResponse =
     case userInfoResponse of
         Err _ ->
             ( { model | flow = Types.Errored Types.ErrHTTPGetUserInfo }
-            , Ports.removeToken True
+            , Ports.removeToken ()
             )
 
         Ok userInfo ->
@@ -244,7 +248,7 @@ gotUserInfo sharedState model userInfoResponse =
 signOutRequested : Model -> ( Model, Cmd Msg )
 signOutRequested model =
     ( { model | flow = Types.Idle }
-    , Navigation.load (Url.toString model.redirectUri)
+    , Cmd.batch [ Ports.removeToken (), Navigation.load (Url.toString model.redirectUri) ]
     )
 
 
@@ -261,13 +265,7 @@ view : Model -> Html Msg
 view model =
     case model.flow of
         Types.Done userInfo ->
-            div []
-                [ text "User details: "
-                , ul []
-                    [ li [] [ text "email: ", text userInfo.email ]
-                    , li [] [ text "name: ", text userInfo.name ]
-                    ]
-                ]
+            UserDetails.view userInfo |> fromUnstyled
 
         Types.Idle ->
             viewIdle
@@ -276,7 +274,10 @@ view model =
             viewAuthorized
 
         Types.Errored err ->
-            div [] [ viewErrored err, form ]
+            div []
+                [ Grid.row [] [ Grid.col [] [ viewErrored err |> toUnstyled ] ] |> fromUnstyled
+                , Grid.row [] [ Grid.col [] [ form |> toUnstyled ] ] |> fromUnstyled
+                ]
 
 
 viewIdle : Html Msg
@@ -286,12 +287,12 @@ viewIdle =
 
 viewAuthorized : Html Msg
 viewAuthorized =
-    div [ class "alert alert-warning" ] [ text "Authorizing user..." ]
+    Alert.simpleWarning [] [ text "Authorizing user..." |> toUnstyled ] |> fromUnstyled
 
 
 viewErrored : Types.Error -> Html Msg
 viewErrored error =
-    div [ class "alert alert-danger" ] [ viewError error ]
+    Alert.simpleDanger [] [ viewError error |> toUnstyled ] |> fromUnstyled
 
 
 viewError : Types.Error -> Html Msg

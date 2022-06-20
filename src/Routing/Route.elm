@@ -350,24 +350,36 @@ view msgMapper sharedState model =
                         [ Navbar.config NavbarMsg
                             |> Navbar.brand [ href "#" ] [ text "Trackers" ]
                             |> Navbar.items (List.map (\route -> navigationLinkView (model.route == route) route) linkList)
+                            |> Navbar.customItems (navigationCustomView model)
                             |> Navbar.view model.navbarState
                         , pageView sharedState model
-                        , footer []
-                            [ a
-                                [ Attributes.href "https://github.com/litvinov-tabor2022"
-                                ]
-                                [ text "Github" ]
+                        , footer [ Attributes.class "footer", Spacing.mtAuto, Spacing.py3 ]
+                            [ Grid.container
+                                []
+                                [ a [ Attributes.href "https://github.com/litvinov-tabor2022" ] [ text "Github" ] ]
                             ]
                         ]
     in
     { title = title ++ " - Tracker"
     , body =
         [ Grid.container []
-            [ CDN.stylesheet ]
+            [ CDN.stylesheet]
         , body
             |> Html.map msgMapper
         ]
     }
+
+
+navigationCustomView : Model -> List (Navbar.CustomItem Msg)
+navigationCustomView model =
+    case model.authModel.flow of
+        Types.Done userInfo ->
+            [ Navbar.textItem [ Spacing.px3 ] [ text userInfo.name ]
+            , Navbar.formItem [] [ Button.button [ Button.small, Button.outlineWarning, Button.onClick (AuthMsg Auth.SignOutRequested) ] [ text "Logout" ] ]
+            ]
+
+        _ ->
+            [ Navbar.customItem <| Html.div [] [] ]
 
 
 navigationLinkView : Bool -> Helpers.Route -> Navbar.Item msg
@@ -417,7 +429,7 @@ pageView sharedState model =
                     ]
 
             AuthPage ->
-                Grid.col [ Col.lg12, Col.attrs [ Flex.block, Spacing.p0, Flex.alignSelfCenter, Flex.justifyCenter ] ]
+                Grid.col [ Col.lg12, Col.sm12, Col.md12, Col.attrs [ Spacing.py5, Flex.block, Spacing.p0, Flex.alignSelfCenter, Flex.justifyCenter ] ]
                     [ Auth.view model.authModel
                         |> Html.Styled.toUnstyled
                         |> Html.map AuthMsg
