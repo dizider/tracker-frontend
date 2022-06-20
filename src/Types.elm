@@ -1,11 +1,10 @@
 module Types exposing (..)
 
 import Dict exposing (Dict)
-import Json.Decode exposing (Decoder, at, dict, field, float, int, string, succeed)
-import Json.Decode.Pipeline exposing (required, requiredAt)
+import Json.Decode exposing (Decoder, dict, string)
 import OAuth
 import OAuth.Implicit as OAuth
-import Url exposing (Protocol(..), Url)
+import Url exposing (Protocol(..))
 
 
 type alias Translations =

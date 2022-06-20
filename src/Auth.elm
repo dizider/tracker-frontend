@@ -2,8 +2,7 @@ module Auth exposing (Model, Msg(..), authorizedMsg, form, init, initModel, upda
 
 import Bootstrap.Alert as Alert
 import Bootstrap.Grid as Grid
-import Bootstrap.Grid.Row as Row
-import Browser.Navigation as Navigation exposing (Key, pushUrl)
+import Browser.Navigation as Navigation
 import Config as Config
 import Delay exposing (TimeUnit(..), after)
 import Helpers exposing (defaultHttpsUrl)
@@ -16,8 +15,7 @@ import OAuth
 import OAuth.Implicit as OAuth
 import Pages.Partials.UserDetails as UserDetails
 import Ports exposing (genRandomBytes, persistToken)
-import RemoteData.Http exposing (Config)
-import Routing.Helpers as Helpers exposing (parseUrl)
+import Routing.Helpers as Helpers
 import SharedState as SharedState
 import Types as Types
 import Url exposing (Protocol(..), Url)
@@ -51,7 +49,7 @@ type alias Model =
 
 
 initModel : SharedState.SharedState -> Url -> Maybe String -> Model
-initModel sharedState origin stoken =
+initModel _ origin stoken =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
@@ -61,20 +59,7 @@ initModel sharedState origin stoken =
     , token = Maybe.andThen OAuth.tokenFromString stoken
     }
 
-
-{-| During the authentication flow, we'll run twice into the `init` function:
-
-  - The first time, for the application very first run. And we proceed with the `Idle` state,
-    waiting for the user (a.k.a you) to request a sign in.
-
-  - The second time, after a sign in has been requested, the user is redirected to the
-    authorization server and redirects the user back to our application, with an access
-    token and other fields as query parameters.
-
-When query params are present (and valid), we consider the user `Authorized`.
-
--}
-init : SharedState.SharedState -> Url -> Key -> ( Model, Cmd Msg )
+init : SharedState.SharedState -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init sharedState origin navigationKey =
     let
         redirectUri =

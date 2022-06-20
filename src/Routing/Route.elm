@@ -10,9 +10,7 @@ import Bootstrap.Navbar as Navbar
 import Bootstrap.Utilities.Flex as Flex
 import Bootstrap.Utilities.Spacing as Spacing
 import Browser
-import Browser.Navigation exposing (Key)
-import Css exposing (Display)
-import Dict exposing (Dict)
+import Browser.Navigation
 import Html exposing (..)
 import Html.Attributes as Attributes exposing (href)
 import Html.Events exposing (..)
@@ -23,7 +21,7 @@ import Pages.Map as Map
 import Pages.Trackers as Trackers
 import Pages.Tracks as Tracks
 import Routing.Helpers as Helpers exposing (..)
-import SharedState as SharedState exposing (SharedStateUpdate)
+import SharedState as SharedState
 import Types as Types
 import Url exposing (Url)
 
@@ -212,19 +210,16 @@ update sharedState msg model =
     let
         resultMsg =
             Auth.authorizedMsg msg model.authModel
-
-        accessDeniedModel =
-            { model | route = AuthPage }
     in
     case ( resultMsg, model.route ) of
         ( _, AuthPage ) ->
             case msg of
-                (AuthMsg _) as amsg ->
+                AuthMsg _ ->
                     authUpdateProxy sharedState msg model
 
                 _ ->
                     case resultMsg of
-                        Ok authMsg ->
+                        Ok _ ->
                             let
                                 updateModel =
                                     { model | route = parseUrl model.url }
@@ -234,7 +229,7 @@ update sharedState msg model =
                         Err _ ->
                             authUpdateProxy sharedState AccessDenied model
 
-        ( Ok authMsg, _ ) ->
+        ( Ok _, _ ) ->
             let
                 updateModel =
                     { model | route = parseUrl model.url }
@@ -419,7 +414,7 @@ linkList =
 
 pageView : SharedState.SharedState -> Model -> Html Msg
 pageView sharedState model =
-    template (Html.div [] []) <|
+    template <|
         case model.route of
             HomePage ->
                 Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
@@ -460,14 +455,11 @@ pageView sharedState model =
                 Grid.col [] [ h1 [] [ text "Access denied" ] ]
 
 
-template : Html msg -> Grid.Column msg -> Html msg
-template left content =
+template : Grid.Column msg -> Html msg
+template content =
     Grid.containerFluid []
         [ Grid.row [ Row.attrs [ Flex.block, Flex.justifyCenter ] ]
-            [ -- Grid.col [ Col.lg2, Col.attrs [ UtilsFlex.alignSelfEnd ] ] [ left ]
-              content
-
-            -- , Grid.col [ Col.lg2, Col.attrs [ UtilsFlex.alignSelfEnd ] ] [ text "konec"]
+            [ content
             ]
         ]
 

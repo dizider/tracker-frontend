@@ -1,6 +1,6 @@
-module Pages.Home exposing (Model, Msg(..), initModel, update, view, load)
+module Pages.Home exposing (Model, Msg(..), initModel, load, update, view)
 
-import Api as Api exposing (fetchActiveTrackers)
+import Api
 import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
 import Bootstrap.Modal as Modal
@@ -9,10 +9,9 @@ import Css exposing (..)
 import Decoders as Decoders
 import Dict as Dict
 import Html as Html
-import Html.Attributes as Attributes
 import Html.Events as Events
 import Html.Styled as SHtml exposing (..)
-import Html.Styled.Attributes as SAttributes exposing (css, hidden, id)
+import Html.Styled.Attributes as SAttributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Icons
 import Json.Decode exposing (Decoder)
@@ -20,11 +19,9 @@ import Pages.Partials.MapView as MapView
 import Pages.Partials.TrackSelection as TrackSelection
 import Ports as Ports
 import RemoteData exposing (RemoteData(..), WebData)
-import RemoteData.Http as Http
-import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
+import Routing.Helpers as Helpers exposing (Route(..), routeToString)
 import SharedState as SharedState
 import Types as Types exposing (Coordinates)
-import Pages.Partials.MapView exposing (mapView)
 
 
 type alias Model =
@@ -56,7 +53,9 @@ initModel =
 
 
 load : Cmd msg
-load = MapView.load
+load =
+    MapView.load
+
 
 mapViewWithButtons : MapView.Model Msg -> SharedState.SharedState -> MapView.Model Msg
 mapViewWithButtons model sharedState =

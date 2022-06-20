@@ -2,11 +2,7 @@ module Pages.Partials.PairingView exposing (Model, Tab(..), Msg, fetchData, init
 
 import Api as Api
 import Bootstrap.Button as Button
-import Bootstrap.Card as Card
 import Bootstrap.Form as Form
-import Bootstrap.Modal as Modal
-import Html.Events as Events
-import Bootstrap.Grid as Grid
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Select as Select
 import Bootstrap.Spinner as Spinner

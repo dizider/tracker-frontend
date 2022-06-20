@@ -2,7 +2,6 @@ module Routing.Helpers exposing (..)
 
 import Json.Decode as Decode exposing (decodeString, list)
 import Json.Encode as Encode
-import Types exposing (Tracker)
 import Url exposing (Url)
 import Url.Builder as Builder
 import Url.Parser as Parser exposing (..)
