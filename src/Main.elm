@@ -38,6 +38,7 @@ type Msg
     | AuthMessage Auth.Msg
     | NewRandomBytes (List Int)
     | NewCoordinates String
+    | FullscreenMode Bool
 
 
 subscriptions : Model -> Sub Msg
@@ -45,6 +46,7 @@ subscriptions _ =
     Sub.batch
         [ randomBytes NewRandomBytes
         , newCoordinatesReceived NewCoordinates
+        , fullscreenActive FullscreenMode
         ]
 
 
@@ -56,6 +58,7 @@ init flags origin navigationKey =
             , token = flags.token
             , state = flags.state
             , url = origin
+            , viewState = SharedState.Normal
             }
 
         ( routeModel, routeMsg ) =
@@ -74,7 +77,7 @@ init flags origin navigationKey =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case model.appState of
-        Ready _ _ ->
+        Ready sharedState routeModel ->
             let
                 wrapped =
                     messageWrapper msg
@@ -106,6 +109,9 @@ update msg model =
                         Browser.External href ->
                             Navigation.load href
                     )
+
+                FullscreenMode mode ->
+                    ( { model | appState = Ready (SharedState.update sharedState <| SharedState.FullscreenMode mode) routeModel }, Cmd.none )
 
                 NoOp ->
                     noOp model
@@ -151,6 +157,9 @@ messageWrapper msg =
                     Route.NoOp
 
         ClickedLink _ ->
+            Route.NoOp
+
+        FullscreenMode _ ->
             Route.NoOp
 
         NoOp ->
