@@ -17,8 +17,8 @@ window.app = null
 window.map = null
 window.maps = null
 window.markersLayer = null
-window.rootUrl = "***REMOVED***" //window.location.host
-window.winUrl = "http://" + window.location.host
+window.rootUrl = process.env.ELM_APP_WS_ORIGIN //window.location.host
+window.winUrl = "https://" + window.location.host
 window.wsUrl = "wss://" + rootUrl + "/subscribe";
 window.wsSocket = null
 window.tracks = []
@@ -28,11 +28,11 @@ console.log(wsUrl)
 initApp()
 
 function initApp() {
-    Loader.load()
     app = Elm.Main.init({
         node: rootNode,
         flags: {
-            clientId: "***REMOVED***",
+            clientId: process.env.ELM_APP_CLIENT_ID,
+            apiOrigin: process.env.ELM_APP_API_ORIGIN,
             state: rememberedBytes(),
             token: persistedToken()
         }

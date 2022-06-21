@@ -15,6 +15,8 @@ type alias SharedState =
     , state : Maybe String
     , url : Url
     , viewState : ViewState
+    , clientId : String
+    , apiOrigin : String
     }
 
 

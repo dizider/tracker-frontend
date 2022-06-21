@@ -7,18 +7,13 @@ import Json.Encode exposing (Value)
 import RemoteData exposing (WebData)
 import RemoteData.Http as RemoteHttp
 import Routing.Helpers as Helpers
+import SharedState
 import Types as Types
 import Url.Builder exposing (QueryParameter, crossOrigin, string)
 
-
-origin : String
-origin =
-    "***REMOVED***"
-
-
-withOrigin : List String -> List QueryParameter -> String
-withOrigin =
-    crossOrigin origin
+withOrigin : SharedState.SharedState -> List String -> List QueryParameter -> String
+withOrigin sharedState =
+    crossOrigin sharedState.apiOrigin
 
 
 get : String -> (WebData success -> msg) -> Decoder success -> Cmd msg
@@ -31,50 +26,50 @@ post =
     RemoteHttp.postWithConfig RemoteHttp.defaultConfig
 
 
-fetchTracks : (WebData success -> msg) -> Decoder success -> Cmd msg
-fetchTracks =
-    get <| withOrigin [ "tracks-list" ] []
+fetchTracks : SharedState.SharedState -> (WebData success -> msg) -> Decoder success -> Cmd msg
+fetchTracks sharedState =
+    get <| withOrigin sharedState [ "tracks-list" ] []
 
 
-fetchActiveTracks : (WebData success -> msg) -> Decoder success -> Cmd msg
-fetchActiveTracks =
-    get <| withOrigin [ "tracks", "active" ] []
+fetchActiveTracks : SharedState.SharedState -> (WebData success -> msg) -> Decoder success -> Cmd msg
+fetchActiveTracks sharedState =
+    get <| withOrigin sharedState [ "tracks", "active" ] []
 
 
-fetchTrackers : (WebData (List Types.Tracker) -> msg) -> Decoder (List Types.Tracker) -> Cmd msg
-fetchTrackers =
-    get <| withOrigin [ "trackers-list" ] []
+fetchTrackers : SharedState.SharedState -> (WebData (List Types.Tracker) -> msg) -> Decoder (List Types.Tracker) -> Cmd msg
+fetchTrackers sharedState =
+    get <| withOrigin sharedState [ "trackers-list" ] []
 
 
-fetchActiveTrackers : (WebData success -> msg) -> Decoder success -> Cmd msg
-fetchActiveTrackers =
-    get <| withOrigin [ "trackers", "active" ] []
+fetchActiveTrackers : SharedState.SharedState -> (WebData success -> msg) -> Decoder success -> Cmd msg
+fetchActiveTrackers sharedState =
+    get <| withOrigin sharedState [ "trackers", "active" ] []
 
 
-fetchInitalCoordinates : (WebData success -> msg) -> Decoder success -> Cmd msg
-fetchInitalCoordinates =
-    get <| withOrigin [ "tracker", "positions" ] []
+fetchInitalCoordinates : SharedState.SharedState -> (WebData success -> msg) -> Decoder success -> Cmd msg
+fetchInitalCoordinates sharedState =
+    get <| withOrigin sharedState [ "tracker", "positions" ] []
 
 
-fetchTrack : (WebData String -> msg) -> Helpers.TrackId -> Cmd msg
-fetchTrack response (Helpers.TrackId id) =
+fetchTrack : SharedState.SharedState -> (WebData String -> msg) -> Helpers.TrackId -> Cmd msg
+fetchTrack sharedState response (Helpers.TrackId id) =
     Http.get
-        { url = withOrigin [ "list", "gpx", String.fromInt id ] []
+        { url = withOrigin sharedState [ "list", "gpx", String.fromInt id ] []
         , expect = Http.expectString (RemoteData.fromResult >> response)
         }
 
 
-trackAssing : (Result Http.Error String -> msg) -> Helpers.TrackId -> Helpers.TrackerId -> Cmd msg
-trackAssing response (Helpers.TrackId track) (Helpers.TrackerId tracker) =
+trackAssing : SharedState.SharedState -> (Result Http.Error String -> msg) -> Helpers.TrackId -> Helpers.TrackerId -> Cmd msg
+trackAssing sharedState response (Helpers.TrackId track) (Helpers.TrackerId tracker) =
     Http.get
-        { url = withOrigin [ "track-assign", String.fromInt tracker, String.fromInt track ] []
+        { url = withOrigin sharedState [ "track-assign", String.fromInt tracker, String.fromInt track ] []
         , expect = Http.expectString response
         }
 
 
-trackCreate : (Result Http.Error Types.Tracker -> msg) -> Helpers.TrackerId -> String -> Cmd msg
-trackCreate response (Helpers.TrackerId tracker) name =
+trackCreate : SharedState.SharedState -> (Result Http.Error Types.Tracker -> msg) -> Helpers.TrackerId -> String -> Cmd msg
+trackCreate sharedState response (Helpers.TrackerId tracker) name =
     Http.get
-        { url = withOrigin [ "track-create", String.fromInt tracker, name ] [ string "assign" "True" ]
+        { url = withOrigin sharedState [ "track-create", String.fromInt tracker, name ] [ string "assign" "True" ]
         , expect = Http.expectJson response Decoders.decodeTracker
         }

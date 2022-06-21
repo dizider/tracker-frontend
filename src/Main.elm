@@ -59,6 +59,8 @@ init flags origin navigationKey =
             , state = flags.state
             , url = origin
             , viewState = SharedState.Normal
+            , clientId = flags.clientId
+            , apiOrigin = flags.apiOrigin
             }
 
         ( routeModel, routeMsg ) =

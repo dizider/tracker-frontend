@@ -67,9 +67,10 @@ mapViewWithButtons model sharedState =
     MapView.addButton (trackSelection sharedState) model
 
 
-fetchInitalCoordinates : Cmd Msg
-fetchInitalCoordinates =
+fetchInitalCoordinates : SharedState.SharedState -> Cmd Msg
+fetchInitalCoordinates sharedState =
     Api.fetchInitalCoordinates
+        sharedState
         HandlePositons
         Decoders.decodeCoordinatesAsDict
 
@@ -162,7 +163,7 @@ update wrapper sharedState msg model =
                 case updatedCoordinates of
                     Success coordinates ->
                         ( { model | coordinates = updatedCoordinates, tracks = updatedTracks }
-                        , Cmd.batch [Dict.values coordinates |> sendCoordinatesToMap, sendTracksToMap updatedTracks]
+                        , Cmd.batch [ Dict.values coordinates |> sendCoordinatesToMap, sendTracksToMap updatedTracks ]
                         , SharedState.NoUpdate
                         )
 
@@ -189,7 +190,7 @@ update wrapper sharedState msg model =
                 ( { model | map = mapViewModel }, mapViewMsg, sharedStateUpdate )
 
             ShowTracksModal ->
-                ( { model | trackSelectionVisibility = Modal.shown }, Cmd.map TrackSelectionMsg TrackSelection.fetchData, SharedState.NoUpdate )
+                ( { model | trackSelectionVisibility = Modal.shown }, Cmd.map TrackSelectionMsg (TrackSelection.fetchData sharedState), SharedState.NoUpdate )
 
             HideTracksModal ->
                 ( { model | trackSelectionVisibility = Modal.hidden }, Cmd.none, SharedState.NoUpdate )
@@ -197,7 +198,7 @@ update wrapper sharedState msg model =
             TrackSelectionMsg tmsg ->
                 let
                     ( newModel, newMsg ) =
-                        TrackSelection.update TrackSelectionMsg tmsg model.trackSelection
+                        TrackSelection.update TrackSelectionMsg tmsg model.trackSelection sharedState
 
                     ( newCoordinates, unsubscribeMsgs ) =
                         unsubscribeNewPositions model tmsg

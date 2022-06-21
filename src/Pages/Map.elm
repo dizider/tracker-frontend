@@ -31,8 +31,8 @@ type Msg
     | MapViewMsg MapView.Msg
 
 
-init : List Track -> ( Model, Cmd Msg )
-init tracks =
+init : List Track -> SharedState.SharedState -> ( Model, Cmd Msg )
+init tracks sharedState =
     let
         emptyModel =
             { tracks = tracks
@@ -42,19 +42,19 @@ init tracks =
             }
 
         ( initModel, initMsg ) =
-            fetchData (List.map (\t -> Helpers.TrackId t.id) tracks) emptyModel
+            fetchData (List.map (\t -> Helpers.TrackId t.id) tracks) emptyModel sharedState
     in
     ( initModel
     , initMsg
     )
 
 
-fetchData : List Helpers.TrackId -> Model -> ( Model, Cmd Msg )
-fetchData tracks model =
+fetchData : List Helpers.TrackId -> Model -> SharedState.SharedState -> ( Model, Cmd Msg )
+fetchData tracks model sharedState =
     ( { model | tracksGpx = Dict.fromList (List.map (\(Helpers.TrackId id) -> ( id, RD.Loading )) tracks), isLoading = True }
     , Cmd.batch <|
         List.append
-            (List.map (\track -> Api.fetchTrack (AddTrack track) track) tracks)
+            (List.map (\track -> Api.fetchTrack sharedState (AddTrack track) track) tracks)
             (List.map (\id -> Ports.removeTrack id) (Dict.keys model.tracksGpx))
     )
 

@@ -15,6 +15,7 @@ import RemoteData as RD
 import Types exposing (Track)
 import Icons
 import Html.Events as Events
+import SharedState exposing (SharedState)
 
 type alias Model =
     { listOfTracks : RD.WebData (List Track)
@@ -39,21 +40,22 @@ initModel =
     }
 
 
-fetchData : Cmd Msg
-fetchData =
+fetchData : SharedState.SharedState -> Cmd Msg
+fetchData sharedState =
     Api.fetchTracks
+        sharedState
         HandleTracks
         Decoders.decodeTrackList
 
 
-update : (Msg -> msg) -> Msg -> Model -> ( Model, Cmd msg )
-update wrapper msg model =
+update : (Msg -> msg) -> Msg -> Model -> SharedState.SharedState -> ( Model, Cmd msg )
+update wrapper msg model sharedState =
     case msg of
         ReloadData ->
             ( { model
                 | listOfTracks = RD.Loading
               }
-            , fetchData |> Cmd.map wrapper
+            , fetchData sharedState |> Cmd.map wrapper
             )
 
         HandleTracks webData ->
@@ -111,10 +113,10 @@ view model =
                                 [ Table.td [] [ checkbox track (Maybe.withDefault Dict.empty model.selectedTracks |> Dict.member track.id) ]
                                 , Table.td [] [ Html.text <| String.fromInt track.id ]
                                 , Table.td [] [ Html.text track.name ]
-                                , Table.td [] [ operations track ]
+                                , Table.td [] [ operations track (Dict.member track.id (model.selectedTracks |> Maybe.withDefault Dict.empty))]
                                 ]
                         )
-                        data
+                        (List.sortBy .name data)
             in
             Html.div []
                 [ Grid.row []
@@ -157,8 +159,8 @@ allTracksAsDict model =
         _ ->
             Nothing
 
-operations : Types.Track -> Html.Html Msg
-operations track =
+operations : Types.Track -> Bool -> Html.Html Msg
+operations track isChecked =
     Html.div []
-        [ Html.button [ Attributes.class "button", Events.onClick (ZoomTo track) ] [ Icons.center ]
+        [ Html.button [ Attributes.class "button", Events.onClick (ZoomTo track), Attributes.hidden (not isChecked) ] [ Icons.center ]
         ]

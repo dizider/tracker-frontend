@@ -5,7 +5,6 @@ import Bootstrap.Form.Checkbox as Checkbox
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
-import Pages.Partials.LoadingView as Loading
 import Bootstrap.Table as Table
 import Browser.Navigation exposing (pushUrl)
 import Decoders as Decoders
@@ -14,6 +13,7 @@ import Html as Html
 import Html.Attributes as Attributes
 import Html.Events as Events
 import Icons as Icons
+import Pages.Partials.LoadingView as Loading
 import RemoteData as RD
 import Routing.Helpers as Helpers exposing (Route(..), TrackId, routeToString)
 import SharedState as SharedState
@@ -45,16 +45,15 @@ initModel =
     }
 
 
-fetchData : Cmd Msg
+fetchData : SharedState.SharedState -> Cmd Msg
 fetchData =
-    Cmd.batch
-        [ fetchTracks
-        ]
+    fetchTracks
 
 
-fetchTracks : Cmd Msg
-fetchTracks =
+fetchTracks : SharedState.SharedState -> Cmd Msg
+fetchTracks sharedState =
     Api.fetchTracks
+        sharedState
         HandleTracks
         Decoders.decodeTrackList
 
@@ -67,7 +66,7 @@ update wrapper sharedState msg model =
                 ( { model
                     | listOfTracks = RD.Loading
                   }
-                , fetchData
+                , fetchData sharedState
                 , SharedState.NoUpdate
                 )
 

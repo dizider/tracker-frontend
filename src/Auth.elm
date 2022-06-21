@@ -45,11 +45,12 @@ type alias Model =
     { redirectUri : Url
     , flow : Types.AuthFlow
     , token : Maybe OAuth.Token
+    , config : Configuration
     }
 
 
 initModel : SharedState.SharedState -> Url -> Maybe String -> Model
-initModel _ origin stoken =
+initModel sharedState origin stoken =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
@@ -57,10 +58,12 @@ initModel _ origin stoken =
     { redirectUri = redirectUri
     , flow = Types.Idle
     , token = Maybe.andThen OAuth.tokenFromString stoken
+    , config = configuration sharedState
     }
 
-init : SharedState.SharedState -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init sharedState origin navigationKey =
+
+init : Model -> SharedState.SharedState -> Url -> Navigation.Key -> ( Model, Cmd Msg )
+init model sharedState origin navigationKey =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
@@ -80,6 +83,7 @@ init sharedState origin navigationKey =
             ( { flow = Maybe.withDefault Types.Idle flow
               , redirectUri = redirectUri
               , token = token
+              , config = model.config
               }
             , Cmd.batch [ clearUrl, after 750 Millisecond UserInfoRequested ]
             )
@@ -97,6 +101,7 @@ init sharedState origin navigationKey =
                     ( { flow = Types.Errored Types.ErrStateMismatch
                       , redirectUri = redirectUri
                       , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
+                      , config = model.config
                       }
                     , clearUrl
                     )
@@ -106,6 +111,7 @@ init sharedState origin navigationKey =
                         ( { flow = Types.Errored Types.ErrStateMismatch
                           , redirectUri = redirectUri
                           , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
+                          , config = model.config
                           }
                         , clearUrl
                         )
@@ -114,6 +120,7 @@ init sharedState origin navigationKey =
                         ( { flow = Types.Authorized token
                           , redirectUri = redirectUri
                           , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
+                          , config = model.config
                           }
                         , Cmd.batch
                             -- Artificial delay to make the live demo easier to follow.
@@ -128,6 +135,7 @@ init sharedState origin navigationKey =
             ( { flow = Types.Errored <| Types.ErrAuthorization error
               , redirectUri = redirectUri
               , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
+              , config = model.config
               }
             , Cmd.batch
                 [ Ports.removeToken ()
@@ -142,8 +150,8 @@ Note that this demo also fetches basic user information with the obtained access
 hence the user info endpoint and JSON decoder
 
 -}
-configuration : Configuration
-configuration =
+configuration : SharedState.SharedState -> Configuration
+configuration sharedState =
     { authorizationEndpoint =
         { defaultHttpsUrl | host = "accounts.google.com", path = "/o/oauth2/v2/auth" }
     , userInfoEndpoint =
@@ -154,7 +162,7 @@ configuration =
             (Json.field "picture" Json.string)
             (Json.field "email" Json.string)
     , clientId =
-        "***REMOVED***"
+        sharedState.clientId
     , scope =
         [ "profile", "email", "openid" ]
     }
@@ -187,11 +195,11 @@ gotRandomBytes model bytes =
             Helpers.convertBytes bytes
 
         authorization =
-            { clientId = configuration.clientId
+            { clientId = model.config.clientId
             , redirectUri = model.redirectUri
-            , scope = configuration.scope
+            , scope = model.config.scope
             , state = Just state
-            , url = configuration.authorizationEndpoint
+            , url = model.config.authorizationEndpoint
             }
     in
     ( { model | flow = Types.Idle }
@@ -212,7 +220,7 @@ userInfoRequested model token =
 
         _ ->
             ( { model | flow = Types.Authorized token }
-            , getUserInfo configuration token
+            , getUserInfo model.config token
             )
 
 

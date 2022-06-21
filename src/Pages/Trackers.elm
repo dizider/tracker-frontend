@@ -55,9 +55,10 @@ initModel =
     }
 
 
-fetchData : Cmd Msg
-fetchData =
+fetchData : SharedState.SharedState ->Cmd Msg
+fetchData sharedState =
     Api.fetchTrackers
+        sharedState
         HandleTrackers
         Decoders.decodeTrackerList
 
@@ -103,7 +104,7 @@ view model =
 
 
 update : (Msg -> msg) -> SharedState.SharedState -> Msg -> Model -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
-update wrapper _ msg model =
+update wrapper sharedState msg model =
     (\( m, ms, s ) -> ( m, Cmd.map wrapper ms, s )) <|
         case msg of
             HandleTrackers webData ->
@@ -122,7 +123,7 @@ update wrapper _ msg model =
                 in
                 ( { model | pairingViewVisibility = Modal.shown, pairingView = updatedPairingViewModel }
                 , Cmd.batch
-                    [ Cmd.map PairingViewMsg PairingView.fetchData
+                    [ Cmd.map PairingViewMsg (PairingView.fetchData sharedState)
                     , pairingMsg
                     ]
                 , SharedState.NoUpdate
@@ -144,21 +145,21 @@ update wrapper _ msg model =
             Pair trackerId trackId ->
                 let
                     pairMsg =
-                        Api.trackAssing PairingResult trackId trackerId
+                        Api.trackAssing sharedState PairingResult trackId trackerId
                 in
                 ( model, pairMsg, SharedState.NoUpdate )
 
             CreateAndPair tracker newName ->
                 let
                     pairMsg =
-                        Api.trackCreate CreateAndPairResult tracker newName
+                        Api.trackCreate sharedState CreateAndPairResult tracker newName
                 in
                 ( model, pairMsg, SharedState.NoUpdate )
 
             PairingResult result ->
                 case result of
                     Ok response ->
-                        ( { model | pairingResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, fetchData, SharedState.NoUpdate )
+                        ( { model | pairingResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, fetchData sharedState, SharedState.NoUpdate )
 
                     Err _ ->
                         ( { model | pairingResult = Just (Err "Error while pairing tracker with track") }, Cmd.none, SharedState.NoUpdate )
@@ -224,7 +225,6 @@ modalView model =
                 ]
                 [ Html.text "Save" ]
             ]
-        |> Modal.attrs [ Attributes.style "width" "10px" ]
         |> Modal.view model.pairingViewVisibility
 
 

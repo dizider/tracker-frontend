@@ -63,10 +63,10 @@ init sharedState url =
             Trackers.initModel
 
         ( authModel, authMsg ) =
-            Auth.init sharedState url sharedState.navKey
+            Auth.init (Auth.initModel sharedState url Nothing) sharedState url sharedState.navKey
 
         ( mapModel, mapMsg ) =
-            Map.init []
+            Map.init [] sharedState
 
         ( navbarState, navbarCmd ) =
             Navbar.initialState NavbarMsg
@@ -124,7 +124,7 @@ authUpdateProxy sharedState msg model =
         ChangedUrl location ->
             let
                 ( newModel, newMsg ) =
-                    loadPage location model
+                    loadPage sharedState location model
             in
             ( { newModel | route = parseUrl location, url = location }
             , newMsg
@@ -135,7 +135,7 @@ authUpdateProxy sharedState msg model =
             case route of
                 Tracks ->
                     ( model
-                    , Cmd.batch [ Cmd.map TracksMsg Tracks.fetchData, Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
+                    , Cmd.batch [ Cmd.map TracksMsg (Tracks.fetchData sharedState), Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
                     , SharedState.NoUpdate
                     )
 
@@ -144,7 +144,7 @@ authUpdateProxy sharedState msg model =
                         Just ids ->
                             let
                                 ( updateMapModel, mapMsg ) =
-                                    Map.fetchData ids model.mapModel
+                                    Map.fetchData ids model.mapModel sharedState
                             in
                             ( { model | mapModel = updateMapModel }
                             , Cmd.batch [ Cmd.map MapMsg mapMsg, Browser.Navigation.pushUrl sharedState.navKey (routeToString route) ]
@@ -240,15 +240,15 @@ update sharedState msg model =
             authUpdateProxy sharedState AccessDenied model
 
 
-loadPage : Url -> Model -> ( Model, Cmd Msg )
-loadPage url model =
+loadPage : SharedState.SharedState -> Url -> Model -> ( Model, Cmd Msg )
+loadPage sharedState url model =
     case parseUrl url of
         MapPage mtrackId ->
             case mtrackId of
                 Just ids ->
                     let
                         ( newModel, newMsg ) =
-                            Map.fetchData ids model.mapModel
+                            Map.fetchData ids model.mapModel sharedState
                     in
                     ( { model | mapModel = newModel }, Cmd.map MapMsg newMsg )
 
@@ -259,10 +259,10 @@ loadPage url model =
             ( model, Cmd.none )
 
         Tracks ->
-            ( model, Cmd.map TracksMsg Tracks.fetchData )
+            ( model, Cmd.map TracksMsg <| Tracks.fetchData sharedState )
 
         Trackers ->
-            ( model, Cmd.map TrackersMsg Trackers.fetchData )
+            ( model, Cmd.map TrackersMsg <| Trackers.fetchData sharedState )
 
         HomePage ->
             ( model, Home.load )

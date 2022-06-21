@@ -6,6 +6,7 @@ type alias RawFlags =
     { state : Maybe (List Int)
     , clientId : String
     , token : Maybe String
+    , apiOrigin : String
     }
 
 
@@ -13,6 +14,7 @@ type alias Flags =
     { state : Maybe String
     , clientId : String
     , token : Maybe String
+    , apiOrigin : String
     }
 
 
@@ -25,4 +27,5 @@ decodeFlags flags =
     { state = state
     , clientId = flags.clientId
     , token = flags.token
+    , apiOrigin = flags.apiOrigin
     }

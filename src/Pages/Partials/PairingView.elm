@@ -1,19 +1,19 @@
-module Pages.Partials.PairingView exposing (Model, Tab(..), Msg, fetchData, initModel, selectTracker, update, view)
+module Pages.Partials.PairingView exposing (Model, Msg, Tab(..), fetchData, initModel, selectTracker, update, view)
 
 import Api as Api
 import Bootstrap.Button as Button
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Select as Select
-import Pages.Partials.LoadingView as Loading
 import Bootstrap.Utilities.Flex as Flex
 import Decoders
 import Html as Html
 import Html.Attributes exposing (value)
+import Pages.Partials.LoadingView as Loading
 import RemoteData as RD
 import Routing.Helpers as Helpers
 import Types as Types
-
+import SharedState as SharedState
 
 type Tab
     = ExistingTrack
@@ -52,13 +52,15 @@ initModel =
     }
 
 
-fetchData : Cmd Msg
-fetchData =
+fetchData : SharedState.SharedState -> Cmd Msg
+fetchData sharedState =
     Cmd.batch
         [ Api.fetchTracks
+            sharedState
             HandleTracks
             Decoders.decodeTrackList
         , Api.fetchTrackers
+            sharedState
             HandleTrackers
             Decoders.decodeTrackerList
         ]
@@ -156,44 +158,3 @@ newTrackTab =
         , Button.button [ Button.light, Button.attrs [ Flex.alignItemsCenter, Flex.alignSelfCenter ], Button.onClick SwitchTab ]
             [ Html.text "Show existing tracks" ]
         ]
-
-
--- modalView : Model -> Html.Html Msg
--- modalView model =
---     Modal.config CloseModal
---         |> Modal.small
---         |> Modal.h5 [] [ Html.text "Pair tracker with track" ]
---         |> Modal.body []
---             [ Grid.containerFluid []
---                 [ Grid.row []
---                     [ Grid.col
---                         []
---                         [ Html.map PairingViewMsg (PairingView.view model.pairingView) ]
---                     ]
---                 ]
---             ]
---         |> Modal.footer []
---             [ Button.button
---                 [ Button.outlinePrimary
---                 , Button.attrs [ Events.onClick CloseModal ]
---                 ]
---                 [ Html.text "Close" ]
---             , Button.button
---                 [ Button.primary
---                 , Button.attrs
---                     [ Events.onClick <|
---                         let
---                             selected =
---                                 Maybe.map2 (\track tracker -> Pair track tracker) model.pairingView.selectedTracker model.pairingView.selectedTrack
---                         in
---                         case selected of
---                             Nothing ->
---                                 PairingError
-
---                             Just msg ->
---                                 msg
---                     ]
---                 ]
---                 [ Html.text "Save" ]
---             ]
---         |> Modal.view model.pairingViewVisibility
