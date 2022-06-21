@@ -5,13 +5,13 @@ import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
 import Bootstrap.Modal as Modal
-import Pages.Partials.LoadingView as Loading
 import Bootstrap.Table as Table
 import Decoders as Decoders
 import Html as Html
 import Html.Attributes as Attributes
 import Html.Events as Events
 import Http
+import Pages.Partials.LoadingView as Loading
 import Pages.Partials.PairingView as PairingView
 import RemoteData as RD
 import Routing.Helpers as Helpers
@@ -224,6 +224,7 @@ modalView model =
                 ]
                 [ Html.text "Save" ]
             ]
+        |> Modal.attrs [ Attributes.style "width" "10px" ]
         |> Modal.view model.pairingViewVisibility
 
 

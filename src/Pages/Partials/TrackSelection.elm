@@ -13,7 +13,8 @@ import Html as Html
 import Html.Attributes as Attributes
 import RemoteData as RD
 import Types exposing (Track)
-import Bootstrap.Utilities.Size as Size
+import Icons
+import Html.Events as Events
 
 type alias Model =
     { listOfTracks : RD.WebData (List Track)
@@ -27,6 +28,7 @@ type Msg
     | ReloadData
     | TrackSelectToggle Track Bool
     | SelectAllToggle Bool
+    | ZoomTo Track
 
 
 initModel : Model
@@ -92,6 +94,10 @@ update wrapper msg model =
             else
                 ( { model | isAllSelected = False, selectedTracks = Nothing }, Cmd.none )
 
+        ZoomTo _ ->
+            (model, Cmd.none)
+
+
 
 view : Model -> Html.Html Msg
 view model =
@@ -100,11 +106,12 @@ view model =
             let
                 rows =
                     List.map
-                        (\tracker ->
+                        (\track ->
                             Table.tr []
-                                [ Table.td [] [ checkbox tracker (Maybe.withDefault Dict.empty model.selectedTracks |> Dict.member tracker.id) ]
-                                , Table.td [] [ Html.text <| String.fromInt tracker.id ]
-                                , Table.td [] [ Html.text tracker.name ]
+                                [ Table.td [] [ checkbox track (Maybe.withDefault Dict.empty model.selectedTracks |> Dict.member track.id) ]
+                                , Table.td [] [ Html.text <| String.fromInt track.id ]
+                                , Table.td [] [ Html.text track.name ]
+                                , Table.td [] [ operations track ]
                                 ]
                         )
                         data
@@ -121,6 +128,7 @@ view model =
                                         ]
                                     , Table.th [] [ Html.text "ID" ]
                                     , Table.th [] [ Html.text "Name" ]
+                                    , Table.th [] [ Html.text "Center" ]
                                     ]
                             , tbody = Table.tbody [] rows
                             }
@@ -148,3 +156,9 @@ allTracksAsDict model =
 
         _ ->
             Nothing
+
+operations : Types.Track -> Html.Html Msg
+operations track =
+    Html.div []
+        [ Html.button [ Attributes.class "button", Events.onClick (ZoomTo track) ] [ Icons.center ]
+        ]

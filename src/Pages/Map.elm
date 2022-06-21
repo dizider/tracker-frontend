@@ -4,7 +4,7 @@ import Api as Api
 import Css exposing (..)
 import Dict exposing (Dict)
 import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes exposing (id)
+import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (..)
 import Pages.Partials.LoadingView as Loading
 import Pages.Partials.MapView as MapView
@@ -13,7 +13,6 @@ import RemoteData as RD
 import Routing.Helpers as Helpers
 import SharedState
 import Types exposing (Track)
-import Html.Styled.Attributes exposing (css)
 
 
 type alias Model =
@@ -28,6 +27,7 @@ type Msg
     = NoOp
     | AddTrack Helpers.TrackId (RD.WebData String)
     | RemoveTrack Int
+    | RemoveAll
     | MapViewMsg MapView.Msg
 
 
@@ -52,11 +52,10 @@ init tracks =
 fetchData : List Helpers.TrackId -> Model -> ( Model, Cmd Msg )
 fetchData tracks model =
     ( { model | tracksGpx = Dict.fromList (List.map (\(Helpers.TrackId id) -> ( id, RD.Loading )) tracks), isLoading = True }
-    , Cmd.batch
-        (List.map
-            (\track -> Api.fetchTrack (AddTrack track) track)
-            tracks
-        )
+    , Cmd.batch <|
+        List.append
+            (List.map (\track -> Api.fetchTrack (AddTrack track) track) tracks)
+            (List.map (\id -> Ports.removeTrack id) (Dict.keys model.tracksGpx))
     )
 
 
@@ -86,6 +85,9 @@ update wrapper msg model sharedState =
             RemoveTrack id ->
                 ( { model | tracksGpx = Dict.remove id model.tracksGpx }, Ports.removeTrack id, SharedState.NoUpdate )
 
+            RemoveAll ->
+                ({model | tracksGpx = Dict.empty}, Cmd.batch (List.map (\id -> Ports.removeTrack id) (Dict.keys model.tracksGpx)), SharedState.NoUpdate)
+
             MapViewMsg mapMsg ->
                 let
                     ( mapViewModel, mapViewMsg, sharedStateUpdate ) =
@@ -113,7 +115,8 @@ loadingStatus model =
 view : SharedState.SharedState -> Model -> Html Msg
 view _ model =
     if model.isLoading then
-         Loading.view |> fromUnstyled
+        Loading.view |> fromUnstyled
+
     else
         div []
             [ MapView.mapView MapViewMsg model.map []

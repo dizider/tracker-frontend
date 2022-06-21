@@ -1,5 +1,6 @@
 module Icons exposing
-    ( delete
+    ( center
+    , delete
     , edit2
     , eye
     , maximize
@@ -22,6 +23,17 @@ svgFeatherIcon className =
         , strokeWidth "2"
         , viewBox "0 0 24 24"
         , width "24"
+        ]
+
+
+center : Html msg
+center =
+    svgFeatherIcon "center"
+        [ Svg.circle [ cx "12", cy "12", r "10" ] []
+        , Svg.line [ x1 "22", y1 "12", x2 "18", y2 "12" ] []
+        , Svg.line [ x1 "6", y1 "12", x2 "2", y2 "12" ] []
+        , Svg.line [ x1 "12", y1 "6", x2 "12", y2 "2" ] []
+        , Svg.line [ x1 "12", y1 "22", x2 "12", y2 "18" ] []
         ]
 
 

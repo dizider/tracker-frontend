@@ -57,9 +57,19 @@ function initApp() {
         tracks.push(track)
     });
 
+    app.ports.removeTrack.subscribe(track => {
+        tracks = tracks.filter(x => {
+            return x[0] != track
+        })
+    })
+
     app.ports.updateCoordinates.subscribe(coords => {
         console.log("Updating coordinates", coords)
         maps.updateCoordinates(coords)
+    });
+
+    app.ports.updateTracks.subscribe(tracks => {
+        maps.addTrack(tracks)
     });
 
     app.ports.fullscreenMap.subscribe(_ => {
@@ -78,9 +88,13 @@ function initApp() {
     });
 
     app.ports.loadMap.subscribe(_ => {
-        if(maps !== undefined)
-            maps.loadMap()
+        if (maps !== undefined)
+            maps.redrawMap()
     });
+
+    app.ports.centerMap.subscribe(coords => {
+        maps.centerMap(coords)
+    })
 
     document.addEventListener("fullscreenchange", () => {
         app.ports.fullscreenActive.send(document.fullscreenElement !== null)

@@ -17,6 +17,7 @@ import Html.Styled.Attributes as SAttributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Icons
 import Json.Decode exposing (Decoder)
+import Maybe.Extra
 import Pages.Partials.MapView as MapView
 import Pages.Partials.TrackSelection as TrackSelection
 import Ports as Ports
@@ -31,6 +32,7 @@ type alias Model =
     , map : MapView.Model Msg
     , trackSelectionVisibility : Modal.Visibility
     , trackSelection : TrackSelection.Model
+    , tracks : Dict.Dict String (List Coordinates)
     }
 
 
@@ -51,6 +53,7 @@ initModel =
     , map = MapView.initModel
     , trackSelectionVisibility = Modal.hidden
     , trackSelection = TrackSelection.initModel
+    , tracks = Dict.empty
     }
 
 
@@ -89,8 +92,7 @@ trackSelection sharedState attrs =
 view : SharedState.SharedState -> Model -> Html.Html Msg
 view sharedState model =
     Html.div []
-        [ 
-         MapView.mapView MapViewMsg (mapViewWithButtons model.map sharedState) [modalView model |> fromUnstyled] |> SHtml.toUnstyled
+        [ MapView.mapView MapViewMsg (mapViewWithButtons model.map sharedState) [ modalView model |> fromUnstyled ] |> SHtml.toUnstyled
         ]
 
 
@@ -99,7 +101,7 @@ modalView model =
     Modal.config HideTracksModal
         |> Modal.large
         |> Modal.h5 [] [ Html.text "Select tracks for live view" ]
-        |> Modal.body [ Attributes.style "max-height" "50vh", Attributes.style "overflow" "auto"  ]
+        |> Modal.body [ Attributes.style "max-height" "50vh", Attributes.style "overflow" "auto" ]
             [ Grid.container []
                 [ Grid.row []
                     [ Grid.col
@@ -135,11 +137,32 @@ update wrapper sharedState msg model =
                             )
                             model.trackSelection.selectedTracks
                             |> Maybe.withDefault NotAsked
+
+                    updatedTracks =
+                        Maybe.map
+                            (\selectedTracks ->
+                                if Dict.member coords.trackId selectedTracks then
+                                    let
+                                        track =
+                                            Dict.get (String.fromInt coords.trackId) model.tracks
+                                    in
+                                    case track of
+                                        Just t ->
+                                            Dict.insert (String.fromInt coords.trackId) (coords :: t) model.tracks
+
+                                        Nothing ->
+                                            Dict.insert (String.fromInt coords.trackId) [ coords ] model.tracks
+
+                                else
+                                    model.tracks
+                            )
+                            model.trackSelection.selectedTracks
+                            |> Maybe.withDefault Dict.empty
                 in
                 case updatedCoordinates of
                     Success coordinates ->
-                        ( { model | coordinates = updatedCoordinates }
-                        , Dict.values coordinates |> sendCoordinatesToMap
+                        ( { model | coordinates = updatedCoordinates, tracks = updatedTracks }
+                        , Cmd.batch [Dict.values coordinates |> sendCoordinatesToMap, sendTracksToMap updatedTracks]
                         , SharedState.NoUpdate
                         )
 
@@ -203,6 +226,11 @@ sendCoordinatesToMap coords =
     Ports.updateCoordinates coords
 
 
+sendTracksToMap : Dict.Dict String (List Coordinates) -> Cmd Msg
+sendTracksToMap tracks =
+    Dict.toList tracks |> Ports.updateTracks
+
+
 unsubscribeNewPositions : Model -> TrackSelection.Msg -> ( WebData (Dict.Dict String Coordinates), List (Cmd Msg) )
 unsubscribeNewPositions model tmsg =
     case tmsg of
@@ -255,6 +283,18 @@ subscribeNewPositions model tmsg =
 
             else
                 [ Cmd.none ]
+
+        TrackSelection.ZoomTo track ->
+            let
+                coordinate =
+                    RemoteData.map (\c -> Dict.get (String.fromInt track.id) c) model.coordinates |> RemoteData.toMaybe |> Maybe.Extra.join
+            in
+            case coordinate of
+                Just coord ->
+                    [ Ports.centerMap coord ]
+
+                Nothing ->
+                    [ Cmd.none ]
 
         _ ->
             [ Cmd.none ]
