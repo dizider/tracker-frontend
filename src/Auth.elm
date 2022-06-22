@@ -67,9 +67,6 @@ init model sharedState origin navigationKey =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
-
-        clearUrl =
-            Navigation.replaceUrl navigationKey (Url.toString redirectUri)
     in
     case OAuth.parseToken origin of
         OAuth.Empty ->
@@ -85,16 +82,9 @@ init model sharedState origin navigationKey =
               , token = token
               , config = model.config
               }
-            , Cmd.batch [ clearUrl, after 750 Millisecond UserInfoRequested ]
+            , after 0 Millisecond UserInfoRequested
             )
 
-        -- It is important to set a `state` when making the authorization request
-        -- and to verify it after the redirection. The state can be anything but its primary
-        -- usage is to prevent cross-site request forgery; at minima, it should be a short,
-        -- non-guessable string, generated on the fly.
-        --
-        -- We remember any previously generated state  state using the browser's local storage
-        -- and give it back (if present) to the elm application upon start
         OAuth.Success { token, state } ->
             case sharedState.state of
                 Nothing ->
@@ -103,7 +93,7 @@ init model sharedState origin navigationKey =
                       , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
                       , config = model.config
                       }
-                    , clearUrl
+                    , Cmd.none
                     )
 
                 Just bytes ->
@@ -113,7 +103,7 @@ init model sharedState origin navigationKey =
                           , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
                           , config = model.config
                           }
-                        , clearUrl
+                        , Cmd.none
                         )
 
                     else
@@ -123,10 +113,7 @@ init model sharedState origin navigationKey =
                           , config = model.config
                           }
                         , Cmd.batch
-                            -- Artificial delay to make the live demo easier to follow.
-                            -- In practice, the access token could be requested right here.
-                            [ clearUrl
-                            , after 750 Millisecond UserInfoRequested
+                            [ after 0 Millisecond UserInfoRequested
                             , persistToken (OAuth.tokenToString token)
                             ]
                         )
@@ -137,19 +124,10 @@ init model sharedState origin navigationKey =
               , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
               , config = model.config
               }
-            , Cmd.batch
-                [ Ports.removeToken ()
-                , clearUrl
-                ]
+            , Ports.removeToken ()
             )
 
 
-{-| OAuth configuration.
-
-Note that this demo also fetches basic user information with the obtained access token,
-hence the user info endpoint and JSON decoder
-
--}
 configuration : SharedState.SharedState -> Configuration
 configuration sharedState =
     { authorizationEndpoint =
@@ -233,8 +211,15 @@ gotUserInfo sharedState model userInfoResponse =
             )
 
         Ok userInfo ->
+            let
+                url =
+                    sharedState.url
+
+                newUrl =
+                    { url | query = Nothing, fragment = Nothing }
+            in
             ( { model | flow = Types.Done userInfo }
-            , Navigation.pushUrl sharedState.navKey (Url.toString sharedState.url)
+            , Navigation.pushUrl sharedState.navKey (Url.toString newUrl)
             )
 
 
