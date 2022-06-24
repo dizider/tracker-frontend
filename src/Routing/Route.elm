@@ -63,7 +63,7 @@ init sharedState url =
             Trackers.initModel
 
         ( authModel, authMsg ) =
-            Auth.init (Auth.initModel sharedState url Nothing) sharedState url sharedState.navKey
+            Auth.init (Auth.initModel sharedState url Nothing) sharedState url
 
         mapModel =
             Map.init

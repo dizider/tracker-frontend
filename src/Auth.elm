@@ -4,7 +4,6 @@ import Bootstrap.Alert as Alert
 import Bootstrap.Grid as Grid
 import Browser.Navigation as Navigation
 import Config as Config
-import Delay exposing (TimeUnit(..), after)
 import Helpers exposing (defaultHttpsUrl)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class)
@@ -62,8 +61,8 @@ initModel sharedState origin stoken =
     }
 
 
-init : Model -> SharedState.SharedState -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init model sharedState origin navigationKey =
+init : Model -> SharedState.SharedState -> Url -> ( Model, Cmd Msg )
+init model sharedState origin =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing, path = Helpers.routeToString Helpers.AuthPage }
@@ -76,13 +75,19 @@ init model sharedState origin navigationKey =
 
                 flow =
                     Maybe.map Types.Authorized token
+
+                initializedModel =
+                    { flow = Maybe.withDefault Types.Idle flow
+                    , redirectUri = redirectUri
+                    , token = token
+                    , config = model.config
+                    }
+
+                ( updatedModel, newMsg ) =
+                    update identity sharedState UserInfoRequested initializedModel
             in
-            ( { flow = Maybe.withDefault Types.Idle flow
-              , redirectUri = redirectUri
-              , token = token
-              , config = model.config
-              }
-            , after 0 Millisecond UserInfoRequested
+            ( updatedModel
+            , newMsg
             )
 
         OAuth.Success { token, state } ->
@@ -107,13 +112,20 @@ init model sharedState origin navigationKey =
                         )
 
                     else
-                        ( { flow = Types.Authorized token
-                          , redirectUri = redirectUri
-                          , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
-                          , config = model.config
-                          }
+                        let
+                            initializedModel =
+                                { flow = Types.Authorized token
+                                , redirectUri = redirectUri
+                                , token = OAuth.tokenFromString (Maybe.withDefault "" sharedState.token)
+                                , config = model.config
+                                }
+
+                            ( updatedModel, newMsg ) =
+                                update identity sharedState UserInfoRequested initializedModel
+                        in
+                        ( updatedModel
                         , Cmd.batch
-                            [ after 0 Millisecond UserInfoRequested
+                            [ newMsg
                             , persistToken (OAuth.tokenToString token)
                             ]
                         )
@@ -325,12 +337,7 @@ authorizedMsg msg model =
 form : Html Msg
 form =
     div []
-        [ -- div [ class "background" ]
-          --[ div [ class "shape" ] []
-          -- , div [ class "shape" ] []
-          -- ]
-          -- ,
-          div [ class "login-form" ]
+        [ div [ class "login-form" ]
             [ div [ class "label" ]
                 [ h3 [] [ text (Config.translates "login-label") ]
                 ]
