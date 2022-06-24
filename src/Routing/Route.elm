@@ -18,6 +18,7 @@ import Html.Styled
 import OAuth exposing (ErrorCode(..))
 import Pages.LiveView as LiveView
 import Pages.Map as Map
+import Pages.Partials.NotFound as NotFound
 import Pages.Trackers as Trackers
 import Pages.Tracks as Tracks
 import Routing.Helpers as Helpers exposing (..)
@@ -445,7 +446,7 @@ pageView sharedState model =
                     ]
 
             NotFound ->
-                Grid.col [] [ h1 [] [ text "404 :(" ] ]
+                Grid.col [ Col.attrs [ Flex.block, Flex.alignItemsCenter, Flex.justifyCenter ] ] [ NotFound.view ]
 
             AccessDeniedPage ->
                 Grid.col [] [ h1 [] [ text "Access denied" ] ]
