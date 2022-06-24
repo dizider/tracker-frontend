@@ -16,7 +16,7 @@ import Html.Attributes as Attributes exposing (href)
 import Html.Events exposing (..)
 import Html.Styled
 import OAuth exposing (ErrorCode(..))
-import Pages.Home as Home
+import Pages.LiveView as LiveView
 import Pages.Map as Map
 import Pages.Trackers as Trackers
 import Pages.Tracks as Tracks
@@ -33,7 +33,7 @@ type Msg
     | NavbarMsg Navbar.State
     | TracksMsg Tracks.Msg
     | TrackersMsg Trackers.Msg
-    | HomeMsg Home.Msg
+    | LiveViewMsg LiveView.Msg
     | AuthMsg Auth.Msg
     | MapMsg Map.Msg
     | AuthorizedMsg (Cmd Msg)
@@ -47,7 +47,7 @@ type alias Model =
     , navbarState : Navbar.State
     , tracksListModel : Tracks.Model
     , trackersModel : Trackers.Model
-    , homeModel : Home.Model
+    , liveViewModel : LiveView.Model
     , authModel : Auth.Model
     , mapModel : Map.Model
     }
@@ -73,7 +73,7 @@ init sharedState url =
     in
     ( { tracksListModel = tracksModel
       , trackersModel = trackersModel
-      , homeModel = Home.initModel
+      , liveViewModel = LiveView.initModel
       , route = parseUrl url
       , url = url
       , authModel = authModel
@@ -81,7 +81,7 @@ init sharedState url =
       , navbarState = navbarState
       }
     , Cmd.batch
-        [ Cmd.map HomeMsg Cmd.none
+        [ Cmd.map LiveViewMsg Cmd.none
         , Cmd.map AuthMsg authMsg
         , navbarCmd
         ]
@@ -166,21 +166,21 @@ authUpdateProxy sharedState msg model =
         TrackersMsg tmsg ->
             updateTrackers sharedState model tmsg
 
-        HomeMsg hmsg ->
-            updateHome sharedState model hmsg
+        LiveViewMsg hmsg ->
+            updateLiveView sharedState model hmsg
 
         MapMsg mmsg ->
             updateMap sharedState model mmsg
 
         NewCoordinates coords ->
             case model.route of
-                HomePage ->
+                LiveViewPage ->
                     let
-                        ( updatedHomeModel, updatedHomeMsg, updatedSharedState ) =
-                            Home.update HomeMsg sharedState (Home.NewCoordinates coords) model.homeModel
+                        ( updatedLiveViewModel, updatedLiveViewMsg, updatedSharedState ) =
+                            LiveView.update LiveViewMsg sharedState (LiveView.NewCoordinates coords) model.liveViewModel
                     in
-                    ( { model | homeModel = updatedHomeModel }
-                    , updatedHomeMsg
+                    ( { model | liveViewModel = updatedLiveViewModel }
+                    , updatedLiveViewMsg
                     , updatedSharedState
                     )
 
@@ -260,8 +260,8 @@ loadPage sharedState url model =
         Trackers ->
             ( model, Cmd.map TrackersMsg <| Trackers.fetchData sharedState )
 
-        HomePage ->
-            ( model, Home.load )
+        LiveViewPage ->
+            ( model, LiveView.load )
 
         AuthPage ->
             ( model, Cmd.none )
@@ -285,10 +285,10 @@ updateAuth sharedState model authMsg =
 updateTracks : SharedState.SharedState -> Model -> Tracks.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateTracks sharedState model tracksMsg =
     let
-        ( nextHomeModel, tracksCmd, tracksSharedState ) =
+        ( nextLiveViewModel, tracksCmd, tracksSharedState ) =
             Tracks.update TracksMsg sharedState tracksMsg model.tracksListModel
     in
-    ( { model | tracksListModel = nextHomeModel }
+    ( { model | tracksListModel = nextLiveViewModel }
     , tracksCmd
     , tracksSharedState
     )
@@ -297,23 +297,23 @@ updateTracks sharedState model tracksMsg =
 updateTrackers : SharedState.SharedState -> Model -> Trackers.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
 updateTrackers sharedState model tracksMsg =
     let
-        ( nextHomeModel, trackersCmd, trackersSharedState ) =
+        ( nextLiveViewModel, trackersCmd, trackersSharedState ) =
             Trackers.update TrackersMsg sharedState tracksMsg model.trackersModel
     in
-    ( { model | trackersModel = nextHomeModel }
+    ( { model | trackersModel = nextLiveViewModel }
     , trackersCmd
     , trackersSharedState
     )
 
 
-updateHome : SharedState.SharedState -> Model -> Home.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
-updateHome sharedState model homeMsg =
+updateLiveView : SharedState.SharedState -> Model -> LiveView.Msg -> ( Model, Cmd Msg, SharedState.SharedStateUpdate )
+updateLiveView sharedState model liveViewMsg =
     let
-        ( newModel, homeCmd, updatedSharedState ) =
-            Home.update HomeMsg sharedState homeMsg model.homeModel
+        ( newModel, liveViewCmd, updatedSharedState ) =
+            LiveView.update LiveViewMsg sharedState liveViewMsg model.liveViewModel
     in
-    ( { model | homeModel = newModel }
-    , homeCmd
+    ( { model | liveViewModel = newModel }
+    , liveViewCmd
     , updatedSharedState
     )
 
@@ -402,7 +402,7 @@ navigationLinkView isActive route =
 
 linkList : List Helpers.Route
 linkList =
-    [ Helpers.HomePage
+    [ Helpers.LiveViewPage
     , Helpers.Tracks
     , Helpers.Trackers
     ]
@@ -412,10 +412,10 @@ pageView : SharedState.SharedState -> Model -> Html Msg
 pageView sharedState model =
     template <|
         case model.route of
-            HomePage ->
+            LiveViewPage ->
                 Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
-                    [ Home.view model.homeModel
-                        |> Html.map HomeMsg
+                    [ LiveView.view model.liveViewModel
+                        |> Html.map LiveViewMsg
                     ]
 
             Tracks ->

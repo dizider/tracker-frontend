@@ -21,7 +21,7 @@ type Route
     | AccessDeniedPage
     | Tracks
     | Trackers
-    | HomePage
+    | LiveViewPage
     | AuthPage
     | MapPage (Maybe (List TrackId))
 
@@ -40,8 +40,8 @@ matchRoute : Parser.Parser (Route -> a) a
 matchRoute =
     Parser.oneOf
         [ --Parser.map MapPage <| Parser.s "map" </> Parser.map Tracker Parser.int
-          Parser.map HomePage (Parser.s "home")
-        , Parser.map HomePage Parser.top
+          Parser.map LiveViewPage (Parser.s "live")
+        , Parser.map LiveViewPage Parser.top
         , Parser.map Tracks (Parser.s "tracks")
         , Parser.map Trackers (Parser.s "trackers")
         , Parser.map AuthPage (Parser.s "auth")
@@ -65,8 +65,8 @@ mapParser =
 routeToTitle : Route -> String
 routeToTitle route =
     case route of
-        HomePage ->
-            "Home"
+        LiveViewPage ->
+            "Live view"
 
         Tracks ->
             "Tracks"
@@ -104,8 +104,8 @@ routeToString route =
         Trackers ->
             "/trackers"
 
-        HomePage ->
-            "/home"
+        LiveViewPage ->
+            "/live"
 
         AuthPage ->
             "/auth"

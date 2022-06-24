@@ -1,4 +1,4 @@
-module Pages.Home exposing (Model, Msg(..), initModel, load, update, view)
+module Pages.LiveView exposing (Model, Msg(..), initModel, load, update, view)
 
 import Api
 import Bootstrap.Button as Button
