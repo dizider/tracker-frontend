@@ -19,7 +19,7 @@ window.maps = null
 window.markersLayer = null
 window.rootUrl = process.env.ELM_APP_WS_ORIGIN //window.location.host
 window.winUrl = "https://" + window.location.host
-window.wsUrl = "wss://" + rootUrl + "/subscribe";
+window.wsUrl = "wss://" + rootUrl + "/subscribe"
 window.wsSocket = null
 window.tracks = []
 
@@ -63,11 +63,6 @@ function initApp() {
         })
     })
 
-    app.ports.updateCoordinates.subscribe(coords => {
-        console.log("Updating coordinates", coords)
-        maps.updateCoordinates(coords)
-    });
-
     app.ports.updateTracks.subscribe(tracks => {
         maps.addTrack(tracks)
     });
@@ -84,7 +79,6 @@ function initApp() {
     });
 
     app.ports.unsubscribeCoordinates.subscribe(trackId => {
-        wsSocket.send("coordinates/" + trackId);
     });
 
     app.ports.loadMap.subscribe(_ => {

@@ -106,11 +106,11 @@ fetchActiveTrackers sharedState tagger =
         |> Maybe.withDefault Cmd.none
 
 
-fetchInitalCoordinates : SharedState.SharedState -> (WebData (Dict.Dict String Types.Coordinates) -> msg) -> Cmd msg
-fetchInitalCoordinates sharedState tagger =
+fetchInitalCoordinates : Types.Track -> SharedState.SharedState -> (WebData Types.Coordinates -> msg) -> Cmd msg
+fetchInitalCoordinates track sharedState tagger =
     getNewArgs
-        |> withOrigin sharedState [ "tracker", "positions" ] []
-        |> withDecoder Decoders.decodeCoordinatesAsDict
+        |> withOrigin sharedState [ "last", "json", String.fromInt track.id ] []
+        |> withDecoder Decoders.decodeCoordinates
         |> withTagger tagger
         |> getJson
         |> Maybe.withDefault Cmd.none

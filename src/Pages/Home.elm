@@ -7,7 +7,6 @@ import Bootstrap.Grid.Col as Col
 import Bootstrap.Modal as Modal
 import Browser.Navigation exposing (pushUrl)
 import Css exposing (..)
-import Decoders as Decoders
 import Dict as Dict
 import Html as Html
 import Html.Attributes as Attributes
@@ -16,7 +15,6 @@ import Html.Styled as SHtml exposing (..)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (..)
 import Icons
-import Maybe.Extra
 import Pages.Partials.MapView as MapView
 import Pages.Partials.TrackSelection as TrackSelection
 import Ports as Ports
@@ -24,15 +22,14 @@ import RemoteData exposing (RemoteData(..), WebData)
 import Routing.Helpers as Helpers exposing (Route(..), routeToString)
 import SharedState as SharedState
 import Types as Types exposing (Coordinates)
-import Browser.Navigation
+
 
 type alias Tracks =
     Dict.Dict String (List Coordinates)
 
 
 type alias Model =
-    { coordinates : WebData (Dict.Dict String Coordinates)
-    , map : MapView.Model Msg
+    { map : MapView.Model Msg
     , trackSelectionVisibility : Modal.Visibility
     , trackSelection : TrackSelection.Model
     , tracks : Tracks
@@ -42,7 +39,7 @@ type alias Model =
 type Msg
     = NoOp
     | NewCoordinates Types.Coordinates
-    | HandlePositons (WebData (Dict.Dict String Coordinates))
+    | InitialCoordinates (WebData Types.Coordinates)
     | NavigateTo Helpers.Route
     | MapViewMsg MapView.Msg
     | TrackSelectionMsg TrackSelection.Msg
@@ -52,8 +49,7 @@ type Msg
 
 initModel : Model
 initModel =
-    { coordinates = Success Dict.empty
-    , map = MapView.initModel
+    { map = MapView.initModel
     , trackSelectionVisibility = Modal.hidden
     , trackSelection = TrackSelection.initModel
     , tracks = Dict.empty
@@ -65,20 +61,21 @@ load =
     MapView.load
 
 
-mapViewWithButtons : MapView.Model Msg -> SharedState.SharedState -> MapView.Model Msg
-mapViewWithButtons model sharedState =
-    MapView.addButton (trackSelection sharedState) model
+mapViewWithButtons : MapView.Model Msg -> MapView.Model Msg
+mapViewWithButtons model =
+    MapView.addButton trackSelection model
 
 
-fetchInitalCoordinates : SharedState.SharedState -> Cmd Msg
-fetchInitalCoordinates sharedState =
+fetchInitalCoordinates : Types.Track -> SharedState.SharedState -> Cmd Msg
+fetchInitalCoordinates track sharedState =
     Api.fetchInitalCoordinates
+        track
         sharedState
-        HandlePositons
+        InitialCoordinates
 
 
-trackSelection : SharedState.SharedState -> List (Attribute Msg) -> Html Msg
-trackSelection sharedState attrs =
+trackSelection : List (Attribute Msg) -> Html Msg
+trackSelection attrs =
     button
         (List.append
             [ onClick ShowTracksModal
@@ -92,85 +89,34 @@ trackSelection sharedState attrs =
         [ Icons.eye |> fromUnstyled, text " Tracks" ]
 
 
-view : SharedState.SharedState -> Model -> Html.Html Msg
-view sharedState model =
-    Html.div []
-        [ MapView.mapView MapViewMsg (mapViewWithButtons model.map sharedState) [ modalView model |> fromUnstyled ] |> SHtml.toUnstyled
-        ]
-
-
-modalView : Model -> Html.Html Msg
-modalView model =
-    Modal.config HideTracksModal
-        |> Modal.large
-        |> Modal.h5 [] [ Html.text "Select tracks for live view" ]
-        |> Modal.body [ Attributes.style "max-height" "50vh", Attributes.style "overflow" "auto" ]
-            [ Grid.container []
-                [ Grid.row []
-                    [ Grid.col
-                        [ Col.attrs [] ]
-                        [ Html.map TrackSelectionMsg (TrackSelection.view model.trackSelection) ]
-                    ]
-                ]
-            ]
-        |> Modal.footer []
-            [ Button.button
-                [ Button.outlinePrimary
-                , Button.attrs [ Events.onClick HideTracksModal ]
-                ]
-                [ Html.text "Close" ]
-            ]
-        |> Modal.view model.trackSelectionVisibility
-
-
 update : (Msg -> msg) -> SharedState.SharedState -> Msg -> Model -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
 update wrapper sharedState msg model =
     (\( m, ms, s ) -> ( m, Cmd.map wrapper ms, s )) <|
         case msg of
             NewCoordinates coords ->
                 let
-                    updatedCoordinates =
-                        Maybe.map
-                            (\selectedTracks ->
-                                if Dict.member coords.trackId selectedTracks then
-                                    RemoteData.map (\x -> Dict.insert (String.fromInt coords.trackId) coords x) model.coordinates
-
-                                else
-                                    model.coordinates
-                            )
-                            model.trackSelection.selectedTracks
-                            |> Maybe.withDefault NotAsked
-
                     updatedTracks =
-                        Maybe.map
-                            (\selectedTracks ->
-                                if Dict.member coords.trackId selectedTracks then
-                                    insertCoordinatesToTrack model.tracks coords
-
-                                else
-                                    model.tracks
-                            )
-                            model.trackSelection.selectedTracks
-                            |> Maybe.withDefault Dict.empty
+                        insertCoordinatesToTrack model coords
                 in
-                case updatedCoordinates of
-                    Success coordinates ->
-                        ( { model | coordinates = updatedCoordinates, tracks = updatedTracks }
-                        , Cmd.batch [ Dict.values coordinates |> sendCoordinatesToMap, sendTracksToMap updatedTracks ]
+                ( { model | tracks = updatedTracks }
+                , sendTracksToMap updatedTracks
+                , SharedState.NoUpdate
+                )
+
+            InitialCoordinates webCoord ->
+                case webCoord of
+                    Success coords ->
+                        let
+                            updatedTracks =
+                                insertCoordinatesToTrack model coords
+                        in
+                        ( { model | tracks = updatedTracks }
+                        , sendTracksToMap updatedTracks
                         , SharedState.NoUpdate
                         )
 
                     _ ->
-                        ( model
-                        , Cmd.none
-                        , SharedState.NoUpdate
-                        )
-
-            HandlePositons data ->
-                ( { model | coordinates = data }
-                , Cmd.none
-                , SharedState.NoUpdate
-                )
+                        ( model, Cmd.none, SharedState.NoUpdate )
 
             NavigateTo route ->
                 ( model
@@ -208,11 +154,11 @@ update wrapper sharedState msg model =
                     ( newCoordinates, unsubscribeMsgs ) =
                         unsubscribeNewPositions model tmsg
                 in
-                ( { model | trackSelection = newModel, coordinates = newCoordinates }
+                ( { model | trackSelection = newModel }
                 , Cmd.batch
-                    (sendCoordinatesToMap_ newCoordinates
+                    (sendTracksToMap newCoordinates
                         :: newMsg
-                        :: List.append (subscribeNewPositions model tmsg) unsubscribeMsgs
+                        :: List.append (subscribeNewPositions model sharedState tmsg) unsubscribeMsgs
                     )
                 , SharedState.NoUpdate
                 )
@@ -221,8 +167,54 @@ update wrapper sharedState msg model =
                 ( model, Cmd.none, SharedState.NoUpdate )
 
 
-insertCoordinatesToTrack : Tracks -> Coordinates -> Tracks
-insertCoordinatesToTrack tracks coords =
+view : Model -> Html.Html Msg
+view model =
+    Html.div []
+        [ MapView.mapView MapViewMsg (mapViewWithButtons model.map) [ modalView model |> fromUnstyled ] |> SHtml.toUnstyled
+        ]
+
+
+modalView : Model -> Html.Html Msg
+modalView model =
+    Modal.config HideTracksModal
+        |> Modal.large
+        |> Modal.h5 [] [ Html.text "Select tracks for live view" ]
+        |> Modal.body [ Attributes.style "max-height" "50vh", Attributes.style "overflow" "auto" ]
+            [ Grid.container []
+                [ Grid.row []
+                    [ Grid.col
+                        [ Col.attrs [] ]
+                        [ Html.map TrackSelectionMsg (TrackSelection.view model.trackSelection) ]
+                    ]
+                ]
+            ]
+        |> Modal.footer []
+            [ Button.button
+                [ Button.outlinePrimary
+                , Button.attrs [ Events.onClick HideTracksModal ]
+                ]
+                [ Html.text "Close" ]
+            ]
+        |> Modal.view model.trackSelectionVisibility
+
+
+insertCoordinatesToTrack : Model -> Coordinates -> Tracks
+insertCoordinatesToTrack model coords =
+    Maybe.map
+        (\selectedTracks ->
+            -- track was selected by user
+            if Dict.member coords.trackId selectedTracks then
+                insertCoordinatesToTrack_ model.tracks coords
+
+            else
+                model.tracks
+        )
+        model.trackSelection.selectedTracks
+        |> Maybe.withDefault Dict.empty
+
+
+insertCoordinatesToTrack_ : Tracks -> Coordinates -> Tracks
+insertCoordinatesToTrack_ tracks coords =
     let
         track =
             Dict.get (String.fromInt coords.trackId) tracks
@@ -235,37 +227,22 @@ insertCoordinatesToTrack tracks coords =
             Dict.insert (String.fromInt coords.trackId) [ coords ] tracks
 
 
-sendCoordinatesToMap_ : WebData (Dict.Dict String Coordinates) -> Cmd Msg
-sendCoordinatesToMap_ coords =
-    case coords of
-        Success coordinates ->
-            Dict.values coordinates |> Ports.updateCoordinates
-
-        _ ->
-            Cmd.none
-
-
-sendCoordinatesToMap : List Coordinates -> Cmd Msg
-sendCoordinatesToMap coords =
-    Ports.updateCoordinates coords
-
-
 sendTracksToMap : Dict.Dict String (List Coordinates) -> Cmd Msg
 sendTracksToMap tracks =
     Dict.toList tracks |> Ports.updateTracks
 
 
-unsubscribeNewPositions : Model -> TrackSelection.Msg -> ( WebData (Dict.Dict String Coordinates), List (Cmd Msg) )
+unsubscribeNewPositions : Model -> TrackSelection.Msg -> ( Tracks, List (Cmd Msg) )
 unsubscribeNewPositions model tmsg =
     case tmsg of
         TrackSelection.TrackSelectToggle track isChecked ->
             if not isChecked then
-                ( RemoteData.map (\x -> Dict.remove (String.fromInt track.id) x) model.coordinates
+                ( Dict.remove (String.fromInt track.id) model.tracks
                 , [ Ports.unsubscribeCoordinates track.id ]
                 )
 
             else
-                ( model.coordinates, [ Cmd.none ] )
+                ( model.tracks, [ Cmd.none ] )
 
         TrackSelection.SelectAllToggle isChecked ->
             if not isChecked then
@@ -274,7 +251,7 @@ unsubscribeNewPositions model tmsg =
                         TrackSelection.allTracksAsDict model.trackSelection |> Maybe.map Dict.values
 
                     newCoordinates =
-                        RemoteData.map (always Dict.empty) model.coordinates
+                        Dict.empty
                 in
                 ( newCoordinates
                 , allTracksAsList
@@ -283,18 +260,18 @@ unsubscribeNewPositions model tmsg =
                 )
 
             else
-                ( model.coordinates, [ Cmd.none ] )
+                ( model.tracks, [ Cmd.none ] )
 
         _ ->
-            ( model.coordinates, [ Cmd.none ] )
+            ( model.tracks, [ Cmd.none ] )
 
 
-subscribeNewPositions : Model -> TrackSelection.Msg -> List (Cmd Msg)
-subscribeNewPositions model tmsg =
+subscribeNewPositions : Model -> SharedState.SharedState -> TrackSelection.Msg -> List (Cmd Msg)
+subscribeNewPositions model sharedState tmsg =
     case tmsg of
         TrackSelection.TrackSelectToggle track isChecked ->
             if isChecked then
-                [ Ports.subscribeCoordinates track.id ]
+                [ Ports.subscribeCoordinates track.id, fetchInitalCoordinates track sharedState ]
 
             else
                 [ Cmd.none ]
@@ -315,14 +292,17 @@ subscribeNewPositions model tmsg =
         TrackSelection.ZoomTo track ->
             let
                 coordinate =
-                    model.coordinates
-                        |> RemoteData.map (\c -> Dict.get (String.fromInt track.id) c)
-                        |> RemoteData.toMaybe
-                        |> Maybe.Extra.join
+                    model.tracks
+                        |> Dict.get (String.fromInt track.id)
             in
             case coordinate of
                 Just coord ->
-                    [ Ports.centerMap coord ]
+                    Maybe.map
+                        (\x ->
+                            [ Ports.centerMap x ]
+                        )
+                        (List.head coord)
+                        |> Maybe.withDefault [ Cmd.none ]
 
                 Nothing ->
                     [ Cmd.none ]

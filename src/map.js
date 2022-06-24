@@ -82,11 +82,17 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
         let geometryLayer = new SMap.Layer.Geometry()
         map.addLayer(geometryLayer)
         geometryLayer.enable()
+        markersLayer.removeAll()
         for (let i = 0; i < coords.length; i++) {
             let trackId = coords[i][0]
             let track = coords[i][1].map(c => {
                 return SMap.Coords.fromWGS84(c.lon, c.lat)
             })
+            let img = winUrl + "/drop.svg"
+            let lastPostion = coords[i][1][0]
+            let desc = "Track id: " + lastPostion.trackId + "</br> time: " + lastPostion.time + "</br> battery: " + lastPostion.battery
+            let marker = makeMarker(lastPostion.lat, lastPostion.lon, trackId, desc, img)
+            markersLayer.addMarker(marker)
 
             let options1 = {
                 color: "#0ff",
@@ -133,19 +139,6 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
             // pass the rest to draw the line
             let gpx = new SMap.Layer.GPX(xmlDoc, trackId, { maxPoints: 5000, colors: [lineColor] })
             this.gpxLayer.addLayer(gpx)
-        }
-    }
-
-    updateCoordinates(coords) {
-        markersLayer.removeAll()
-        for (let i in coords) {
-            let c = coords[i]
-            let img = winUrl + "/drop.svg"
-            let desc = "Track id: " + c.trackId + "</br> time: " + c.time + "</br> battery: " + c.battery
-            let marker = makeMarker(c.lat, c.lon, c.trackId, desc, img)
-            liveMarkers = {}
-            markersLayer.addMarker(marker)
-            liveMarkers[c.trackId] = marker
         }
     }
 
