@@ -2,13 +2,11 @@ module Pages.Map exposing (Model, Msg, fetchData, init, update, view)
 
 import Api as Api
 import Bootstrap.Alert as Alert
-import Browser.Navigation as Navigation
 import Css exposing (..)
 import Dict exposing (Dict)
 import Html.Attributes
-import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes exposing (css, id)
-import Html.Styled.Events exposing (..)
+import Html.Styled as SHtml
+import Html.Styled.Attributes exposing (id)
 import Pages.Partials.LoadingView as Loading
 import Pages.Partials.MapView as MapView
 import Ports as Ports
@@ -34,25 +32,13 @@ type Msg
     | MapViewMsg MapView.Msg
 
 
-init : List Track -> SharedState.SharedState -> ( Model, Cmd Msg )
-init tracks sharedState =
-    let
-        emptyModel =
-            { tracks = tracks
-            , map = MapView.initModel
-            , tracksGpx = Dict.empty
-            , isLoading = False
-            }
-
-        -- ( initModel, initMsg ) =
-        --     if List.isEmpty tracks then
-        --         ( emptyModel, Navigation.pushUrl sharedState.navKey (Helpers.routeToString Helpers.Tracks) )
-        --     else
-        --         fetchData (List.map (\t -> Helpers.TrackId t.id) tracks) emptyModel sharedState
-    in
-    ( emptyModel
-    , Cmd.none
-    )
+init : Model
+init =
+    { tracks = []
+    , map = MapView.initModel
+    , tracksGpx = Dict.empty
+    , isLoading = False
+    }
 
 
 fetchData : List Helpers.TrackId -> Model -> SharedState.SharedState -> ( Model, Cmd Msg )
@@ -121,25 +107,25 @@ loadingStatus model =
             False
 
 
-view : SharedState.SharedState -> Model -> Html Msg
+view : SharedState.SharedState -> Model -> SHtml.Html Msg
 view _ model =
     let
         warning =
             if Dict.isEmpty model.tracksGpx then
                 [ Alert.simpleWarning
                     [ Html.Attributes.style "zIndex" "2" ]
-                    [ text "No track selected" |> Html.toUnstyled ]
-                    |> fromUnstyled
+                    [ SHtml.text "No track selected" |> SHtml.toUnstyled ]
+                    |> SHtml.fromUnstyled
                 ]
 
             else
                 []
     in
     if model.isLoading then
-        Loading.view |> fromUnstyled
+        Loading.view |> SHtml.fromUnstyled
 
     else
-        div []
+        SHtml.div []
             [ MapView.mapView MapViewMsg
                 model.map
                 warning

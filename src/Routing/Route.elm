@@ -65,8 +65,8 @@ init sharedState url =
         ( authModel, authMsg ) =
             Auth.init (Auth.initModel sharedState url Nothing) sharedState url sharedState.navKey
 
-        ( mapModel, mapMsg ) =
-            Map.init [] sharedState
+        mapModel =
+            Map.init
 
         ( navbarState, navbarCmd ) =
             Navbar.initialState NavbarMsg
@@ -83,10 +83,7 @@ init sharedState url =
     , Cmd.batch
         [ Cmd.map HomeMsg Cmd.none
         , Cmd.map AuthMsg authMsg
-        , Cmd.map MapMsg mapMsg
         , navbarCmd
-
-        -- , updatePage url
         ]
     )
 
@@ -170,7 +167,6 @@ authUpdateProxy sharedState msg model =
             updateTrackers sharedState model tmsg
 
         HomeMsg hmsg ->
-            -- TODO: fix handling new coords
             updateHome sharedState model hmsg
 
         MapMsg mmsg ->
@@ -418,7 +414,7 @@ pageView sharedState model =
         case model.route of
             HomePage ->
                 Grid.col [ Col.attrs [ Spacing.p0, Flex.alignSelfCenter ] ]
-                    [ Home.view sharedState model.homeModel
+                    [ Home.view model.homeModel
                         |> Html.map HomeMsg
                     ]
 

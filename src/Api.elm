@@ -1,9 +1,8 @@
 module Api exposing (fetchActiveTrackers, fetchActiveTracks, fetchInitalCoordinates, fetchTrack, fetchTrackers, fetchTracks, trackAssing, trackCreate)
 
 import Decoders as Decoders
-import Dict
 import Http as Http
-import Json.Decode exposing (Decoder, succeed)
+import Json.Decode exposing (Decoder)
 import Json.Encode exposing (Value)
 import RemoteData exposing (WebData)
 import RemoteData.Http as RemoteHttp

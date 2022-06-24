@@ -53,7 +53,7 @@ initModel =
     }
 
 
-fetchData : SharedState.SharedState ->Cmd Msg
+fetchData : SharedState.SharedState -> Cmd Msg
 fetchData sharedState =
     Api.fetchTrackers
         sharedState
@@ -175,7 +175,7 @@ update wrapper sharedState msg model =
 
 operations : Types.Tracker -> Html.Html Msg
 operations tracker =
-    Button.button [ Button.primary, Button.small, Button.onClick (RequestPairing tracker) ] [ Html.text "Add track" ]
+    Button.button [ Button.primary, Button.small, Button.onClick (RequestPairing tracker) ] [ Html.text "Add/assing track" ]
 
 
 modalView : Model -> Html.Html Msg
@@ -247,7 +247,7 @@ notificationView model =
                         Alert.simpleDanger [] [ Html.text err ]
 
                     Ok res ->
-                        Alert.simpleSuccess [] [ Html.text ("Track (" ++ String.fromInt res.id ++ ") succesfully created and paired with tracker") ]
+                        Alert.simpleSuccess [] [ Html.text ("Track (" ++ String.fromInt res.track.id ++ ") succesfully created and paired with tracker (" ++ String.fromInt res.id ++ ")") ]
 
             Nothing ->
                 Html.div [] []

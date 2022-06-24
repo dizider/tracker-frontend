@@ -1,8 +1,6 @@
 module Pages.Partials.MapView exposing (Model, Msg, addButton, initModel, load, mapView, update)
 
 import Css exposing (..)
-import Css.Transitions exposing (zIndex2)
-import Html
 import Html.Styled as SHtml exposing (button, div, fromUnstyled, node)
 import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (onClick)

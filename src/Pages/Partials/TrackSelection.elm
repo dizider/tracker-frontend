@@ -14,7 +14,7 @@ import RemoteData as RD
 import Types exposing (Track)
 import Icons
 import Html.Events as Events
-import SharedState exposing (SharedState)
+import SharedState
 
 type alias Model =
     { listOfTracks : RD.WebData (List Track)
@@ -63,7 +63,7 @@ update wrapper msg model sharedState =
 
         TrackSelectToggle track isChecked ->
             let
-                selectedTracks =
+                updatedSelectedTracks =
                     if isChecked then
                         case model.selectedTracks of
                             Nothing ->
@@ -85,7 +85,7 @@ update wrapper msg model sharedState =
                                 Just t
                         )
             in
-            ( { model | selectedTracks = selectedTracks }, Cmd.none )
+            ( { model | selectedTracks = updatedSelectedTracks }, Cmd.none )
 
         SelectAllToggle state ->
             if state then

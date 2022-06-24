@@ -88,7 +88,7 @@ routeToTitle route =
                 Nothing ->
                     "Map"
 
-                Just track ->
+                Just _ ->
                     "Track "
 
 
