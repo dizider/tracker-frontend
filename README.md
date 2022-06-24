@@ -17,3 +17,12 @@ Aplikace bude tvořit uživatelské rozhraní pro venkovní hru. Skupiny hráč�
 	* odesílání dat přes WebSockets
 * Autorizovaný přístup
 	* Google OAuth
+
+## Build
+
+- `npm run build` - vytvoří produkční build
+- `npm run start` - spustí server s produkčním buildem
+- `npm run dev-server` - spustí dev server s projektem
+- `npm run test` - spustí testy
+
+Před spuštěním prudkční verze je nutné nastavit environment variables (lze i v souboru `.env`).
