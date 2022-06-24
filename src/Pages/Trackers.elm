@@ -6,11 +6,9 @@ import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
 import Bootstrap.Modal as Modal
 import Bootstrap.Table as Table
-import Decoders as Decoders
 import Html as Html
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Http
 import Pages.Partials.LoadingView as Loading
 import Pages.Partials.PairingView as PairingView
 import RemoteData as RD
@@ -37,8 +35,8 @@ type Msg
     | CreateAndPair Helpers.TrackerId String
     | NavigateTo String
     | PairingError
-    | PairingResult (Result Http.Error String)
-    | CreateAndPairResult (Result Http.Error Types.Tracker)
+    | PairingResult (RD.WebData String)
+    | CreateAndPairResult (RD.WebData Types.Tracker)
 
 
 initModel : Model
@@ -60,7 +58,6 @@ fetchData sharedState =
     Api.fetchTrackers
         sharedState
         HandleTrackers
-        Decoders.decodeTrackerList
 
 
 view : Model -> Html.Html Msg
@@ -158,18 +155,18 @@ update wrapper sharedState msg model =
 
             PairingResult result ->
                 case result of
-                    Ok response ->
+                    RD.Success response ->
                         ( { model | pairingResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, fetchData sharedState, SharedState.NoUpdate )
 
-                    Err _ ->
+                    _ ->
                         ( { model | pairingResult = Just (Err "Error while pairing tracker with track") }, Cmd.none, SharedState.NoUpdate )
 
             CreateAndPairResult result ->
                 case result of
-                    Ok response ->
+                    RD.Success response ->
                         ( { model | createAndPairResult = Just (Ok response), pairingViewVisibility = Modal.hidden }, Cmd.none, SharedState.NoUpdate )
 
-                    Err _ ->
+                    _ ->
                         ( { model | createAndPairResult = Just (Err "Error while creating & pairing tracker with track") }, Cmd.none, SharedState.NoUpdate )
 
             PairingError ->

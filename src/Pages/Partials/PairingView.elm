@@ -6,7 +6,6 @@ import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Select as Select
 import Bootstrap.Utilities.Flex as Flex
-import Decoders
 import Html as Html
 import Html.Attributes exposing (value)
 import Pages.Partials.LoadingView as Loading
@@ -58,11 +57,9 @@ fetchData sharedState =
         [ Api.fetchTracks
             sharedState
             HandleTracks
-            Decoders.decodeTrackList
         , Api.fetchTrackers
             sharedState
             HandleTrackers
-            Decoders.decodeTrackerList
         ]
 
 

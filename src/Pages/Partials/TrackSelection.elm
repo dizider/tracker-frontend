@@ -6,7 +6,6 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Pages.Partials.LoadingView as Loading
 import Bootstrap.Table as Table
-import Decoders as Decoders
 import Delay exposing (TimeUnit(..))
 import Dict as Dict
 import Html as Html
@@ -45,7 +44,6 @@ fetchData sharedState =
     Api.fetchTracks
         sharedState
         HandleTracks
-        Decoders.decodeTrackList
 
 
 update : (Msg -> msg) -> Msg -> Model -> SharedState.SharedState -> ( Model, Cmd msg )

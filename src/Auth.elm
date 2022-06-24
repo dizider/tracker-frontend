@@ -212,11 +212,8 @@ gotUserInfo sharedState model userInfoResponse =
 
         Ok userInfo ->
             let
-                url =
-                    sharedState.url
-
                 newUrl =
-                    { url | query = Nothing, fragment = Nothing }
+                    sharedState.url
             in
             ( { model | flow = Types.Done userInfo }
             , Navigation.pushUrl sharedState.navKey (Url.toString newUrl)

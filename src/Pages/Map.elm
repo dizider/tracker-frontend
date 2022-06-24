@@ -1,8 +1,11 @@
 module Pages.Map exposing (Model, Msg, fetchData, init, update, view)
 
 import Api as Api
+import Bootstrap.Alert as Alert
+import Browser.Navigation as Navigation
 import Css exposing (..)
 import Dict exposing (Dict)
+import Html.Attributes
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (..)
@@ -38,14 +41,17 @@ init tracks sharedState =
             { tracks = tracks
             , map = MapView.initModel
             , tracksGpx = Dict.empty
-            , isLoading = True
+            , isLoading = False
             }
 
-        ( initModel, initMsg ) =
-            fetchData (List.map (\t -> Helpers.TrackId t.id) tracks) emptyModel sharedState
+        -- ( initModel, initMsg ) =
+        --     if List.isEmpty tracks then
+        --         ( emptyModel, Navigation.pushUrl sharedState.navKey (Helpers.routeToString Helpers.Tracks) )
+        --     else
+        --         fetchData (List.map (\t -> Helpers.TrackId t.id) tracks) emptyModel sharedState
     in
-    ( initModel
-    , initMsg
+    ( emptyModel
+    , Cmd.none
     )
 
 
@@ -86,7 +92,7 @@ update wrapper msg model sharedState =
                 ( { model | tracksGpx = Dict.remove id model.tracksGpx }, Ports.removeTrack id, SharedState.NoUpdate )
 
             RemoveAll ->
-                ({model | tracksGpx = Dict.empty}, Cmd.batch (List.map (\id -> Ports.removeTrack id) (Dict.keys model.tracksGpx)), SharedState.NoUpdate)
+                ( { model | tracksGpx = Dict.empty }, Cmd.batch (List.map (\id -> Ports.removeTrack id) (Dict.keys model.tracksGpx)), SharedState.NoUpdate )
 
             MapViewMsg mapMsg ->
                 let
@@ -108,16 +114,33 @@ loadingStatus model =
         RD.Success _ ->
             False
 
-        _ ->
+        RD.Loading ->
             True
+
+        _ ->
+            False
 
 
 view : SharedState.SharedState -> Model -> Html Msg
 view _ model =
+    let
+        warning =
+            if Dict.isEmpty model.tracksGpx then
+                [ Alert.simpleWarning
+                    [ Html.Attributes.style "zIndex" "2" ]
+                    [ text "No track selected" |> Html.toUnstyled ]
+                    |> fromUnstyled
+                ]
+
+            else
+                []
+    in
     if model.isLoading then
         Loading.view |> fromUnstyled
 
     else
         div []
-            [ MapView.mapView MapViewMsg model.map []
+            [ MapView.mapView MapViewMsg
+                model.map
+                warning
             ]

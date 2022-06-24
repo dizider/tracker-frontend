@@ -1,6 +1,8 @@
-module Pages.Partials.MapView exposing (Model, Msg, addButton, initModel, mapView, update, load)
+module Pages.Partials.MapView exposing (Model, Msg, addButton, initModel, load, mapView, update)
 
 import Css exposing (..)
+import Css.Transitions exposing (zIndex2)
+import Html
 import Html.Styled as SHtml exposing (button, div, fromUnstyled, node)
 import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (onClick)
@@ -26,7 +28,9 @@ initModel =
 
 
 load : Cmd msg
-load = Ports.loadMap ()
+load =
+    Ports.loadMap ()
+
 
 addButton : (List (SHtml.Attribute msg) -> SHtml.Html msg) -> Model msg -> Model msg
 addButton btn model =
@@ -63,7 +67,7 @@ update msg model _ =
 
 
 mapView : (Msg -> msg) -> Model msg -> List (SHtml.Html msg) -> SHtml.Html msg
-mapView wrapper model att =
+mapView wrapper model attrs =
     node "seznam-maps"
         [ id "maps" ]
         [ div
@@ -73,7 +77,7 @@ mapView wrapper model att =
                 , width (vw 100)
                 ]
             ]
-            (List.append model.additionalButtons (SHtml.map wrapper fullscreenButton :: att))
+            (List.append model.additionalButtons (SHtml.map wrapper fullscreenButton :: attrs))
         ]
 
 

@@ -1,13 +1,13 @@
 module Pages.Tracks exposing (..)
 
 import Api as Api
+import Bootstrap.Alert as Alert
 import Bootstrap.Form.Checkbox as Checkbox
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Bootstrap.Table as Table
 import Browser.Navigation exposing (pushUrl)
-import Decoders as Decoders
 import Dict as Dict
 import Html as Html
 import Html.Attributes as Attributes
@@ -55,7 +55,6 @@ fetchTracks sharedState =
     Api.fetchTracks
         sharedState
         HandleTracks
-        Decoders.decodeTrackList
 
 
 update : (Msg -> msg) -> SharedState.SharedState -> Msg -> Model -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
@@ -173,6 +172,9 @@ view _ model =
 
         RD.Loading ->
             Loading.view
+
+        RD.Failure _ ->
+            Alert.simpleDanger [] [ Html.text "Connection error, try it later." ]
 
         _ ->
             Html.div [] [ Html.text "No data" ]
