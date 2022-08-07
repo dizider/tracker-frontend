@@ -1,4 +1,4 @@
-module Pages.Map exposing (Model, Msg, fetchData, init, update, view)
+module Pages.Map exposing (Model, Msg(..), fetchData, init, update, view)
 
 import Api as Api
 import Bootstrap.Alert as Alert
@@ -16,8 +16,13 @@ import SharedState
 import Types exposing (Track)
 
 
+type alias Tracks =
+    Dict.Dict String (List Types.Coordinates)
+
+
 type alias Model =
     { tracks : List Track
+    , tracksData : Tracks
     , tracksGpx : Dict Int (RD.WebData String)
     , map : MapView.Model Msg
     , isLoading : Bool
@@ -30,11 +35,14 @@ type Msg
     | RemoveTrack Int
     | RemoveAll
     | MapViewMsg MapView.Msg
+    | NewCoordinates Types.Coordinates
+    | InitialCoordinates (RD.WebData Types.Coordinates)
 
 
 init : Model
 init =
     { tracks = []
+    , tracksData = Dict.empty
     , map = MapView.initModel
     , tracksGpx = Dict.empty
     , isLoading = False
@@ -43,6 +51,18 @@ init =
 
 fetchData : List Helpers.TrackId -> Model -> SharedState.SharedState -> ( Model, Cmd Msg )
 fetchData tracks model sharedState =
+    let
+        ( updatedModel, tracksCmd ) =
+            fetchTrack tracks model sharedState
+
+        initialCmd =
+            List.map (\track -> fetchInitalCoordinates track sharedState) tracks
+    in
+    ( updatedModel, Cmd.batch (tracksCmd :: initialCmd) )
+
+
+fetchTrack : List Helpers.TrackId -> Model -> SharedState.SharedState -> ( Model, Cmd Msg )
+fetchTrack tracks model sharedState =
     ( { model | tracksGpx = Dict.fromList (List.map (\(Helpers.TrackId id) -> ( id, RD.Loading )) tracks), isLoading = True }
     , Cmd.batch <|
         List.append
@@ -51,10 +71,43 @@ fetchData tracks model sharedState =
     )
 
 
+fetchInitalCoordinates : Helpers.TrackId -> SharedState.SharedState -> Cmd Msg
+fetchInitalCoordinates track sharedState =
+    Api.fetchInitalCoordinatesById
+        track
+        sharedState
+        InitialCoordinates
+
+
 update : (Msg -> msg) -> Msg -> Model -> SharedState.SharedState -> ( Model, Cmd msg, SharedState.SharedStateUpdate )
 update wrapper msg model sharedState =
     (\( m, ms, s ) -> ( m, Cmd.map wrapper ms, s )) <|
         case msg of
+            NewCoordinates coords ->
+                let
+                    updatedTracks =
+                        insertCoordinatesToTrack model coords
+                in
+                ( { model | tracksData = updatedTracks }
+                , sendTracksToMap updatedTracks
+                , SharedState.NoUpdate
+                )
+
+            InitialCoordinates webCoord ->
+                case webCoord of
+                    RD.Success coords ->
+                        let
+                            updatedTracks =
+                                insertCoordinatesToTrack model coords
+                        in
+                        ( { model | tracksData = updatedTracks }
+                        , sendTracksToMap updatedTracks
+                        , SharedState.NoUpdate
+                        )
+
+                    _ ->
+                        ( model, Cmd.none, SharedState.NoUpdate )
+
             AddTrack (Helpers.TrackId id) result ->
                 case result of
                     RD.Success trackGpx ->
@@ -92,6 +145,34 @@ update wrapper msg model sharedState =
 
             NoOp ->
                 ( model, Cmd.none, SharedState.NoUpdate )
+
+
+insertCoordinatesToTrack : Model -> Types.Coordinates -> Tracks
+insertCoordinatesToTrack model coords =
+    -- track was selected by user
+    if Dict.member coords.trackId model.tracksGpx then
+        insertCoordinatesToTrack_ model.tracksData coords
+    else
+        model.tracksData
+
+
+insertCoordinatesToTrack_ : Tracks -> Types.Coordinates -> Tracks
+insertCoordinatesToTrack_ tracks coords =
+    let
+        track =
+            Dict.get (String.fromInt coords.trackId) tracks
+    in
+    case track of
+        Just t ->
+            Dict.insert (String.fromInt coords.trackId) (coords :: t) tracks
+
+        Nothing ->
+            Dict.insert (String.fromInt coords.trackId) [ coords ] tracks
+
+
+sendTracksToMap : Dict.Dict String (List Types.Coordinates) -> Cmd Msg
+sendTracksToMap tracks =
+    Dict.toList tracks |> Ports.updateTracks
 
 
 loadingStatus : Dict Int (RD.WebData String) -> Bool

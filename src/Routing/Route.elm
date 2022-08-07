@@ -185,9 +185,15 @@ authUpdateProxy sharedState msg model =
                     , updatedSharedState
                     )
 
-                -- TODO : appending new positon to track
                 MapPage _ ->
-                    ( model, Cmd.none, SharedState.NoUpdate )
+                    let
+                        ( updatedMapModel, updatedMapMsg, updatedSharedState ) =
+                            Map.update MapMsg (Map.NewCoordinates coords) model.mapModel sharedState
+                    in
+                    ( { model | mapModel = updatedMapModel }
+                    , updatedMapMsg
+                    , updatedSharedState
+                    )
 
                 _ ->
                     ( model, Cmd.none, SharedState.NoUpdate )

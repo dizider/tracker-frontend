@@ -64,7 +64,8 @@ function initApp() {
     })
 
     app.ports.updateTracks.subscribe(tracks => {
-        maps.addTrack(tracks)
+        if(maps)
+            maps.addTrack(tracks)
     });
 
     app.ports.fullscreenMap.subscribe(_ => {

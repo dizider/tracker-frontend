@@ -11,8 +11,9 @@ import Html.Attributes exposing (value)
 import Pages.Partials.LoadingView as Loading
 import RemoteData as RD
 import Routing.Helpers as Helpers
-import Types as Types
 import SharedState as SharedState
+import Types as Types
+
 
 type Tab
     = ExistingTrack
@@ -123,13 +124,22 @@ existingTrackTab : Model msg -> Html.Html Msg
 existingTrackTab model =
     case model.tracks of
         RD.Success a ->
+            let
+                filteredTracks =
+                    case model.selectedTracker of
+                        Just tracker ->
+                            List.filter (\track -> (Helpers.TrackerId track.trackerId) == tracker) a
+
+                        Nothing ->
+                            a
+            in
             Html.div []
                 [ Form.form []
                     [ Form.group []
                         [ Form.label [] [ Html.text "Select one of the existing tracks" ]
                         , Select.select [ Select.id "track", Select.onChange SelectedTrack ] <|
                             Select.item [ value "" ] []
-                                :: List.map (\x -> Select.item [ value <| String.fromInt x.id ] [ Html.text x.name ]) a
+                                :: List.map (\x -> Select.item [ value <| String.fromInt x.id ] [ Html.text x.name ]) filteredTracks
                         ]
                     , Button.button [ Button.light, Button.attrs [ Flex.alignItemsCenter, Flex.alignSelfCenter ], Button.onClick SwitchTab ]
                         [ Html.text "Create new track" ]

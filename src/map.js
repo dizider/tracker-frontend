@@ -79,10 +79,10 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
 
     addTrack(coords) {
         console.log(coords)
+        if(!map) return
         let geometryLayer = new SMap.Layer.Geometry()
         map.addLayer(geometryLayer)
         geometryLayer.enable()
-        markersLayer.removeAll()
         for (let i = 0; i < coords.length; i++) {
             let trackId = coords[i][0]
             let track = coords[i][1].map(c => {
@@ -92,6 +92,9 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
             let lastPostion = coords[i][1][0]
             let desc = "Track id: " + lastPostion.trackId + "</br> time: " + lastPostion.time + "</br> battery: " + lastPostion.battery
             let marker = makeMarker(lastPostion.lat, lastPostion.lon, trackId, desc, img)
+            if(liveMarkers[trackId])
+                markersLayer.removeMarker(liveMarkers[trackId])
+            liveMarkers[trackId] = marker
             markersLayer.addMarker(marker)
 
             let options1 = {
@@ -120,6 +123,28 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
         let xmlDoc = JAK.XML.createDocument(responseText)
         let pts = xmlDoc.getElementsByTagName("trkpt")
         let lastPoint = pts[pts.length - 1];
+        // draw all waypoints
+        let wpts = xmlDoc.getElementsByTagName("wpt")
+        for (let i = 0; i < wpts.length; i++) {
+            let wpt = wpts[i]
+
+            let name = wpt.getElementsByTagName("name")[0].innerHTML
+            let desc = "Track id: " + trackId + "</br> name: " + name
+            let lat = wpt.getAttribute("lat")
+            let lon = wpt.getAttribute("lon")
+            let visited = wpt.getAttribute("visited")
+            let color = visited === "true" ? "blue" : "red"
+            let img = SMap.CONFIG.img + "/marker/drop-" + color + ".png"
+            
+            markersLayer.addMarker(makeMarker(lat, lon, (i + 1).toString(), desc, img))
+        }
+
+        // remove waypoints so they're not rendered twice
+        while (wpts.length > 0) {
+            let wpt = wpts[0]
+            wpt.parentNode.removeChild(wpt)
+        }
+
         if (i == 0) {
             this.gpxLayer = new SMap.Layer.GPX(xmlDoc, "gpx", { maxPoints: 0 })
             map.addLayer(this.gpxLayer)
@@ -136,6 +161,7 @@ window.customElements.define('seznam-maps', class extends HTMLElement {
             let desc = "Track id: " + trackId + "</br> time: " + lastPoint.getElementsByTagName("time")[0].innerHTML + "</br> battery: " + lastPoint.getAttribute("batt")
             let marker = makeMarker(lastPoint.getAttribute("lat"), lastPoint.getAttribute("lon"), trackId, desc, img)
             markersLayer.addMarker(marker)
+        
             // pass the rest to draw the line
             let gpx = new SMap.Layer.GPX(xmlDoc, trackId, { maxPoints: 5000, colors: [lineColor] })
             this.gpxLayer.addLayer(gpx)

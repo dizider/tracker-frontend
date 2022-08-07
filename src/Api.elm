@@ -1,4 +1,4 @@
-module Api exposing (fetchActiveTrackers, fetchActiveTracks, fetchInitalCoordinates, fetchTrack, fetchTrackers, fetchTracks, trackAssing, trackCreate)
+module Api exposing (fetchActiveTrackers, fetchActiveTracks, fetchInitalCoordinates, fetchInitalCoordinatesById, fetchTrack, fetchTrackers, fetchTracks, trackAssing, trackCreate)
 
 import Decoders as Decoders
 import Http as Http
@@ -100,6 +100,16 @@ fetchActiveTrackers sharedState tagger =
     getNewArgs
         |> withOrigin sharedState [ "trackers", "active" ] []
         |> withDecoder Decoders.decodeTrackerList
+        |> withTagger tagger
+        |> getJson
+        |> Maybe.withDefault Cmd.none
+
+
+fetchInitalCoordinatesById : Helpers.TrackId -> SharedState.SharedState -> (WebData Types.Coordinates -> msg) -> Cmd msg
+fetchInitalCoordinatesById (Helpers.TrackId id) sharedState tagger =
+    getNewArgs
+        |> withOrigin sharedState [ "last", "json", String.fromInt id ] []
+        |> withDecoder Decoders.decodeCoordinates
         |> withTagger tagger
         |> getJson
         |> Maybe.withDefault Cmd.none
